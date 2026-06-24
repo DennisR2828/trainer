@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Trainer">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#131b24"/>
+      <stop offset="1" stop-color="#0b0f14"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <g fill="#4ade80">
+    <rect x="176" y="240" width="160" height="32" rx="10"/>
+    <rect x="150" y="206" width="32" height="100" rx="12"/>
+    <rect x="330" y="206" width="32" height="100" rx="12"/>
+    <rect x="122" y="188" width="32" height="136" rx="14"/>
+    <rect x="358" y="188" width="32" height="136" rx="14"/>
+    <rect x="104" y="224" width="22" height="64" rx="8"/>
+    <rect x="386" y="224" width="22" height="64" rx="8"/>
+  </g>
+</svg>
