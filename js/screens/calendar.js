@@ -6,6 +6,7 @@ import { h, clearNode, num } from '../ui.js';
 import { getPlan, getDays, todayKey } from '../db.js';
 import { dayStatus, isTrainingDay } from '../log.js';
 import { renderDayLog } from './daylog.js';
+import { DIET_ENABLED } from '../config.js';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -58,8 +59,8 @@ export async function renderCalendar(mount) {
       if (st && st.workoutLogged) marks.append(h('span', { class: 'm-workout done' }, '✓'));
       else if (training && isPast) marks.append(h('span', { class: 'm-workout miss' }));
       else if (training) marks.append(h('span', { class: 'm-workout sched' }));
-      // diet: tiny progress ring if any food logged
-      if (st && st.dietLogged) {
+      // diet: tiny progress ring if any food logged (hidden while diet is off)
+      if (DIET_ENABLED && st && st.dietLogged) {
         const pct = targets ? Math.min(1, st.totals.calories / targets.calories) : 0;
         const dash = (2 * Math.PI * 7).toFixed(1);
         marks.append(h('span', { class: 'm-diet', html:
@@ -81,7 +82,7 @@ export async function renderCalendar(mount) {
   function legend() {
     return h('div', { class: 'cal-legend' }, [
       h('span', {}, [h('span', { class: 'lg lg-done' }, '✓'), ' workout logged']),
-      h('span', {}, [h('span', { class: 'lg lg-ring' }), ' diet on target']),
+      DIET_ENABLED ? h('span', {}, [h('span', { class: 'lg lg-ring' }), ' diet on target']) : null,
     ]);
   }
 

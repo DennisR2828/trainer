@@ -318,6 +318,58 @@ select.num-input { text-align: left; }
 .wt { color: var(--muted); font-size: .92rem; }
 .wt b { color: var(--text); font-variant-numeric: tabular-nums; }
 
+/* ---- Today: day hero + workout showcase ---- */
+.day-hero {
+  background: linear-gradient(155deg, color-mix(in oklab, var(--accent) 16%, var(--surface)), var(--surface) 70%);
+  border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; margin-bottom: 14px;
+}
+.day-hero-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.day-focus { color: var(--accent); font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 3px; }
+.day-name { font-size: 1.95rem; font-weight: 800; letter-spacing: -0.04em; line-height: 1.02; margin: 0; }
+.hero-pct { font-size: 1.05rem; font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; flex: none; }
+.day-hero .day-chips { justify-content: flex-start; margin: 14px 0 0; }
+.chip-cardio { color: var(--carb); border-color: color-mix(in oklab, var(--carb) 35%, var(--line)); }
+.hero-bar { height: 8px; background: var(--surface-2); border-radius: 99px; overflow: hidden; margin-top: 14px; }
+.hero-bar span { display: block; height: 100%; width: 100%; background: var(--accent); border-radius: 99px; transform-origin: left; transform: scaleX(0); transition: transform .4s cubic-bezier(.2,.8,.2,1); }
+.hero-bar-label { margin-top: 7px; font-size: .8rem; color: var(--muted); }
+.hero-bar-label .hero-done { color: var(--text); font-weight: 700; font-variant-numeric: tabular-nums; }
+.day-hero.is-complete .hero-bar span { background: var(--pro); }
+.day-hero.is-complete .hero-pct { color: var(--pro); }
+
+.card-flush { padding: 4px 16px; }
+.ex-head { gap: 12px; }
+.ex-badge {
+  flex: none; width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center;
+  background: var(--surface-2); color: var(--muted); font-size: .85rem; font-weight: 700; font-variant-numeric: tabular-nums;
+  transition: background .15s, color .15s;
+}
+.ex-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.ex-muscle { font-size: .74rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ex-item.done .ex-badge { background: color-mix(in oklab, var(--accent) 24%, transparent); color: var(--accent); }
+.ex-item.done .ex-name { color: var(--muted); }
+.set-row.done .set-n { color: var(--accent); font-weight: 800; }
+
+.finisher {
+  width: 100%; display: flex; align-items: center; gap: 12px; text-align: left; margin-bottom: 14px;
+  background: color-mix(in oklab, var(--carb) 9%, var(--surface)); color: var(--text);
+  border: 1px solid color-mix(in oklab, var(--carb) 28%, var(--line)); border-radius: var(--radius); padding: 14px 16px;
+}
+.finisher:active { transform: scale(.99); }
+.finisher-check { flex: none; width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--carb); display: grid; place-items: center; color: var(--bg); font-size: .8rem; font-weight: 800; }
+.finisher.done .finisher-check { background: var(--carb); }
+.finisher-main { display: flex; flex-direction: column; }
+.finisher-label { font-size: .66rem; text-transform: uppercase; letter-spacing: .06em; color: var(--carb); font-weight: 700; }
+.finisher-text { font-weight: 600; }
+.finisher.done .finisher-text { color: var(--muted); text-decoration: line-through; }
+
+.day-note { display: flex; gap: 10px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; color: var(--muted); font-size: .88rem; margin-bottom: 14px; }
+.day-note > span { flex: none; width: 20px; height: 20px; border-radius: 50%; background: var(--surface-2); color: var(--accent); display: grid; place-items: center; font-weight: 800; font-size: .8rem; }
+
+.rest-hero { text-align: center; padding: 52px 24px; }
+.rest-badge { width: 64px; height: 64px; border-radius: 50%; background: var(--surface); display: grid; place-items: center; margin: 0 auto 16px; font-size: 1.7rem; color: var(--accent); }
+.rest-hero h1 { font-size: 1.9rem; }
+.rest-hero p { max-width: 28ch; margin: 0 auto; }
+
 /* ---- accessibility + motion ---- */
 input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; } /* keep placeholders ≥4.5:1 */
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
