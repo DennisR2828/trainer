@@ -9,35 +9,35 @@ Read this first when resuming, then `README.md` for architecture.
 
 ## TL;DR — where we are right now
 
-- **Live on the phone** at **https://dennisr2828.github.io/trainer/** (GitHub Pages).
-  The deployed/live version = the **vibrant palette + SVG tab icons + notch fix** (cache `trainer-v8`).
-- **In the working tree (committed locally, NOT yet pushed/deployed):** the **Today redesign**
-  + **diet hidden behind a flag** (cache bumped to `trainer-v9`). This is the one open item.
+- **Live on the phone** at **https://dennisr2828.github.io/trainer/** (GitHub Pages), cache `trainer-v10`.
+  Deployed = vibrant palette + SVG tab icons + notch fix + **Today redesign** (day hero, live
+  completion bar, exercise checkboxes, replace-exercise swap) + **diet hidden behind a flag**.
+- **No blocking open task.** Everything built so far is verified in-browser and pushed.
 - **Repo:** https://github.com/DennisR2828/trainer (PUBLIC) — under **DennisR2828**, the user's
-  own account. ⚠️ NOT cqdesignsny/Cesar. `gh` has both accounts; DennisR2828 must be active.
+  own account. ⚠️ NOT cqdesignsny/Cesar. `gh` has both accounts and **the active one drifts back
+  to cqdesignsny** — always run `gh auth switch --user DennisR2828` and verify before any push.
 
 ---
 
-## ▶ The ONE open task to finish next session
+## Recently shipped (Today tab, in `js/screens/daylog.js` + `css/styles.css`)
 
-The **Today tab redesign** is coded and committed but needs a visual check, then deploy.
+- Bold **day hero**: focus eyebrow, big day name, exercise/cardio chips, and a **live completion
+  bar** ("X / Y done" across exercises + the cardio finisher; turns green at 100%).
+- Each exercise has a **tap-to-complete checkbox** (shows its number, flips to a ✓; row strikes
+  through). This is the fast "I did my day" path — independent of logging sets.
+- **Replace exercise** (in the expanded panel): `suggestAlternatives()` in `exercises.js` offers
+  same-muscle swaps, filtered by the user's equipment + injuries. Tap a chip to swap it in.
+- Interactive **cardio finisher** you tap to check off (counts toward the bar).
+- **Diet hidden** everywhere via `DIET_ENABLED` in `js/config.js` (flip to `true` to restore).
+- SW now precaches with `cache:'reload'` so version bumps reliably reach phones.
 
-What changed (in `js/screens/daylog.js` + `css/styles.css`):
-- A bold **day hero**: focus eyebrow, big day name (e.g. "PULL"), exercise-count + cardio chips,
-  and a **live set-progress bar** ("X / Y sets", fills as you log, turns green at 100%).
-- Exercise rows now have **numbered badges** that flip to a ✓ when an exercise is complete,
-  a muscle-group subline, and a per-set "done" state.
-- An interactive **cardio finisher** card you can tap to check off.
-- **Diet removed from Today** (and the Calendar day view + Calendar diet ring/legend), gated behind
-  `DIET_ENABLED` in `js/config.js`. Flip that to `true` to bring diet back everywhere — nothing else changes.
+All verified in-browser and deployed (v10).
 
-**Status:** code is correct on disk (verified the served file). It was NOT visually confirmed this
-session because the preview browser's service worker kept serving stale cached modules (see "Dev
-caching gotcha" below). So next session:
-
-1. **Verify the new Today renders** in a clean context (incognito window, or the cache steps below).
-2. If it looks right, **deploy** (one command — see "Deploy").
-3. Tweak spacing/sizes to taste (the day-name is `1.95rem`; hero gradient is subtle violet).
+## Ideas parked for next time
+- Show last-session weights as a hint on each exercise; PR tracking.
+- Per-exercise rest timer.
+- Re-enable diet when wanted (`DIET_ENABLED = true`).
+- Supabase sync (step 8) for multi-device.
 
 ---
 

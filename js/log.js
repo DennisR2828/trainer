@@ -58,7 +58,12 @@ export function foodTotals(day) {
 
 export function dayStatus(day, targets) {
   const totals = foodTotals(day);
-  const workoutLogged = !!day.workout && day.workout.exercises.some((e) => (e.sets || []).some((s) => num(s.reps) > 0));
+  // "did the workout" = any exercise checked off (or cardio done), with a
+  // fallback to older set-based logs so past days still count.
+  const workoutLogged = !!day.workout && (
+    day.workout.exercises.some((e) => e.done || (e.sets || []).some((s) => num(s.reps) > 0)) ||
+    !!day.workout.cardioDone
+  );
   const dietLogged = (day.food || []).length > 0;
   const onTarget = dietLogged && !!targets &&
     totals.protein >= targets.protein * 0.9 &&

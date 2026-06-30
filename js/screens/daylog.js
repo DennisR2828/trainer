@@ -16,9 +16,6 @@ export async function renderDayLog(mount, dateKey, opts = {}) {
   const targets = plan ? plan.targets : { calories: 2000, protein: 150, carbs: 200, fat: 60 };
   const reRender = () => renderDayLog(mount, dateKey, opts);
 
-  let saveTimer;
-  const scheduleSave = () => { clearTimeout(saveTimer); saveTimer = setTimeout(() => persistDay(day), 350); };
-
   clearNode(mount);
   const wrap = h('div', { class: 'screen' });
 
@@ -93,7 +90,6 @@ export async function renderDayLog(mount, dateKey, opts = {}) {
   }
 
   function exerciseItem(ex, i, updateProgress) {
-    while (ex.sets.length < ex.targetSets) ex.sets.push({ weight: '', reps: '' });
     const info = exerciseInfo(ex.name);
     const item = h('div', { class: 'ex-item' + (ex.done ? ' done' : '') });
 
@@ -109,13 +105,7 @@ export async function renderDayLog(mount, dateKey, opts = {}) {
       },
     }, ex.done ? '✓' : String(i + 1));
 
-    const status = h('span', { class: 'ex-status' });
-    const updateStatus = () => {
-      const logged = ex.sets.filter((s) => num(s.reps) > 0).length;
-      status.textContent = logged ? `${logged}/${ex.targetSets}` : `${ex.targetSets} × ${ex.targetReps}`;
-      status.classList.toggle('done', logged > 0);
-    };
-
+    // tap the row to expand: how-to (form cues + demo video) and the swap option
     const head = h('button', {
       class: 'ex-head', type: 'button', 'aria-expanded': 'false',
       onClick: (e) => { const open = item.classList.toggle('open'); e.currentTarget.setAttribute('aria-expanded', String(open)); },
@@ -124,23 +114,16 @@ export async function renderDayLog(mount, dateKey, opts = {}) {
         h('span', { class: 'ex-name' }, ex.name),
         info.muscles ? h('span', { class: 'ex-muscle' }, info.muscles) : null,
       ]),
-      h('span', { class: 'ex-right' }, [status, h('span', { class: 'ex-caret' }, '⌄')]),
+      h('span', { class: 'ex-right' }, [
+        h('span', { class: 'ex-status' }, `${ex.targetSets} × ${ex.targetReps}`),
+        h('span', { class: 'ex-caret' }, '⌄'),
+      ]),
     ]);
-
-    const setRows = h('div', { class: 'set-rows' });
-    const addRow = (j) => setRows.append(setRow(ex, j, updateStatus, scheduleSave));
-    ex.sets.forEach((_, j) => addRow(j));
-    const addBtn = h('button', { class: 'set-add', type: 'button', onClick: () => { ex.sets.push({ weight: '', reps: '' }); addRow(ex.sets.length - 1); } }, '+ Add set');
 
     item.append(
       h('div', { class: 'ex-row-top' }, [check, head]),
-      h('div', { class: 'ex-panel' }, [
-        replaceControl(ex),
-        h('div', { class: 'set-grid-hd' }, [h('span', {}, 'Set'), h('span', {}, 'Weight'), h('span', {}, 'Reps')]),
-        setRows, addBtn, howTo(ex.name),
-      ])
+      h('div', { class: 'ex-panel' }, [replaceControl(ex), howTo(ex.name)]),
     );
-    updateStatus();
     return item;
   }
 
@@ -218,23 +201,6 @@ export async function renderDayLog(mount, dateKey, opts = {}) {
     [name, cal, pro].forEach((i) => i.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); }));
     return h('div', { class: 'food-add-form' }, [name, h('div', { class: 'food-add-row' }, [cal, pro, add])]);
   }
-}
-
-/* set row: weight + reps inputs; logging a rep marks the set's number */
-function setRow(ex, j, updateStatus, scheduleSave) {
-  const row = h('div', { class: 'set-row' });
-  const mk = (field, ph) => {
-    const inp = h('input', { class: 'set-in', type: 'number', inputmode: 'decimal', placeholder: ph, value: ex.sets[j][field] ?? '' });
-    inp.addEventListener('input', () => {
-      ex.sets[j][field] = inp.value;
-      row.classList.toggle('done', num(ex.sets[j].reps) > 0);
-      updateStatus(); scheduleSave();
-    });
-    return inp;
-  };
-  row.append(h('span', { class: 'set-n' }, String(j + 1)), mk('weight', 'lb'), mk('reps', ex.targetReps));
-  if (num(ex.sets[j].reps) > 0) row.classList.add('done');
-  return row;
 }
 
 /* how-to block: target muscles + form cues + watch-demo link */
