@@ -246,3 +246,62 @@ export function demoSearchUrl(name = '') {
   const q = name.replace(/\(.*?\)/g, '').replace(/\s+/g, ' ').trim() + ' proper form technique';
   return 'https://www.youtube.com/results?search_query=' + encodeURIComponent(q);
 }
+
+/* ---- swap suggestions: alternatives that hit the same muscle group ----
+ * For "the machine is taken / I'd rather not do this one." Ordered specific ->
+ * general so e.g. "leg press" lands in quads (not chest) and "hamstring curl"
+ * in hamstrings (not biceps). Candidates are filtered through the same
+ * equipment + injury rules so a knee user never gets a squat back, etc. */
+const GROUP_RULES = [
+  [/\brdl\b|romanian|deadlift|good morning/i, 'hamstrings'],
+  [/hamstring|leg curl|lying.*curl/i, 'hamstrings'],
+  [/hip thrust|glute bridge|kickback/i, 'glutes'],
+  [/calf/i, 'calves'],
+  [/squat|lunge|leg press|leg extension|step-?up|split squat|hack/i, 'quads'],
+  [/lateral raise/i, 'side_delts'],
+  [/face pull|pull-apart|rear/i, 'rear_delts'],
+  [/pulldown|pull-?up|chin-?up|\brow\b|inverted/i, 'back'],
+  [/shoulder press|overhead press|arnold/i, 'shoulders'],
+  [/pushdown|tricep|\bdip\b|close-grip/i, 'triceps'],
+  [/curl/i, 'biceps'],
+  [/press|push-?up|fly|bench/i, 'chest'],
+  [/plank|knee raise|leg raise|crunch|\bab\b/i, 'core'],
+];
+
+const ALT_POOL = {
+  chest: ['Incline DB press', 'Flat DB press', 'Machine chest press', 'Incline machine press', 'Cable fly', 'Push-up'],
+  back: ['Lat pulldown', 'Pull-up', 'Seated cable row', 'Chest-supported DB row', 'One-arm DB row', 'Inverted row', 'Straight-arm pulldown'],
+  shoulders: ['Seated shoulder press', 'DB shoulder press', 'Machine shoulder press', 'Arnold press'],
+  side_delts: ['Cable lateral raise', 'DB lateral raise', 'Machine lateral raise'],
+  rear_delts: ['Face pull', 'Reverse pec deck', 'Band pull-apart', 'Rear-delt DB fly'],
+  biceps: ['DB curl', 'Hammer curl', 'Cable curl', 'Incline DB curl', 'Preacher curl'],
+  triceps: ['Tricep pushdown', 'Overhead tricep ext', 'Rope pushdown', 'Close-grip press', 'Bench dip'],
+  quads: ['Leg press', 'Leg extension', 'Goblet squat', 'Hack squat', 'Walking lunges', 'Bulgarian split squat'],
+  hamstrings: ['RDL', 'Seated hamstring curl', 'Lying hamstring curl', 'Single-leg RDL', 'Good morning'],
+  glutes: ['Hip thrust', 'Glute bridge', 'Cable kickback', 'Bulgarian split squat'],
+  calves: ['Standing calf raise', 'Seated calf raise', 'Leg-press calf raise'],
+  core: ['Hanging knee raise', 'Plank', 'Cable crunch', 'Leg raise', 'Ab wheel'],
+};
+
+function groupOf(name = '') {
+  for (const [rx, g] of GROUP_RULES) if (rx.test(name)) return g;
+  return null;
+}
+
+export function suggestAlternatives(name, profile = {}, exclude = []) {
+  const group = groupOf(name);
+  if (!group || !ALT_POOL[group]) return [];
+  const skip = new Set([name, ...exclude].map((s) => s.toLowerCase()));
+  const cands = ALT_POOL[group].filter((n) => !skip.has(n.toLowerCase()));
+  if (!cands.length) return [];
+  // run through equipment + injury filters so suggestions fit the user
+  const equipment = profile.equipment || 'full_gym';
+  const fake = [{ name: 'alts', exercises: cands.map((n) => ({ name: n, sets: 3, reps: '10' })) }];
+  const filtered = applyInjuries(applyEquipment(fake, equipment), profile.injuries || {}, equipment);
+  const out = [];
+  for (const ex of filtered[0].exercises) {
+    const key = ex.name.toLowerCase();
+    if (!skip.has(key) && !out.some((n) => n.toLowerCase() === key)) out.push(ex.name);
+  }
+  return out.slice(0, 4);
+}

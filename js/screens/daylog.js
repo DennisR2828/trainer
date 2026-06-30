@@ -1,18 +1,20 @@
-/* Day log: the workout for a date — a bold day hero with a live set-progress
- * bar, exercise rows that expand to log sets + show how-to, and an interactive
- * cardio finisher. Powers both Today and the Calendar day-detail view.
- * Diet logging is built below but only shown when DIET_ENABLED (see config.js). */
+/* Day log: the workout for a date — a bold day hero with a live completion bar,
+ * exercise rows with a tap-to-complete checkbox, a "replace exercise" swap, and
+ * an expand for set logging + how-to. An interactive cardio finisher too.
+ * Powers Today and the Calendar day-detail. Diet is built below but only shown
+ * when DIET_ENABLED (see config.js). */
 
 import { h, clearNode, ring, num } from '../ui.js';
-import { getPlan } from '../db.js';
+import { getPlan, getProfile } from '../db.js';
 import { loadDay, persistDay, foodTotals, uid } from '../log.js';
-import { exerciseInfo, demoSearchUrl } from '../exercises.js';
+import { exerciseInfo, demoSearchUrl, suggestAlternatives } from '../exercises.js';
 import { DIET_ENABLED } from '../config.js';
 
 export async function renderDayLog(mount, dateKey, opts = {}) {
-  const plan = await getPlan();
+  const [plan, profile] = await Promise.all([getPlan(), getProfile()]);
   const day = await loadDay(dateKey, plan);
   const targets = plan ? plan.targets : { calories: 2000, protein: 150, carbs: 200, fat: 60 };
+  const reRender = () => renderDayLog(mount, dateKey, opts);
 
   let saveTimer;
   const scheduleSave = () => { clearTimeout(saveTimer); saveTimer = setTimeout(() => persistDay(day), 350); };
@@ -51,9 +53,9 @@ export async function renderDayLog(mount, dateKey, opts = {}) {
     }
     const w = day.workout;
 
-    // live progress across all sets
     const heroFill = h('span');
     const heroPct = h('span', { class: 'hero-pct' });
+    const heroDone = h('span', { class: 'hero-done' });
     const hero = h('section', { class: 'day-hero' }, [
       h('div', { class: 'day-hero-top' }, [
         h('div', {}, [
@@ -67,16 +69,12 @@ export async function renderDayLog(mount, dateKey, opts = {}) {
         w.cardio ? h('span', { class: 'chip chip-cardio' }, w.cardio) : null,
       ]),
       h('div', { class: 'hero-bar' }, [heroFill]),
-      h('div', { class: 'hero-bar-label' }, [h('span', { class: 'hero-done' }), ' sets done']),
+      h('div', { class: 'hero-bar-label' }, [heroDone, ' done']),
     ]);
-    const heroDone = hero.querySelector('.hero-done');
 
     function updateProgress() {
-      let total = 0, done = 0;
-      for (const e of w.exercises) {
-        total += Math.max(e.targetSets, e.sets.length);
-        done += e.sets.filter((s) => num(s.reps) > 0).length;
-      }
+      const total = w.exercises.length + (w.cardio ? 1 : 0);
+      const done = w.exercises.filter((e) => e.done).length + (w.cardio && w.cardioDone ? 1 : 0);
       const pct = total ? done / total : 0;
       heroFill.style.transform = `scaleX(${pct})`;
       heroDone.textContent = `${done} / ${total}`;
@@ -87,7 +85,7 @@ export async function renderDayLog(mount, dateKey, opts = {}) {
     const list = h('div', { class: 'ex-items' }, w.exercises.map((ex, i) => exerciseItem(ex, i, updateProgress)));
 
     const blocks = [hero, h('div', { class: 'card card-flush' }, [list])];
-    if (w.cardio) blocks.push(finisher(w));
+    if (w.cardio) blocks.push(finisher(w, updateProgress));
     if (w.note) blocks.push(h('div', { class: 'day-note' }, [h('span', {}, '!'), w.note]));
 
     updateProgress();
@@ -97,20 +95,37 @@ export async function renderDayLog(mount, dateKey, opts = {}) {
   function exerciseItem(ex, i, updateProgress) {
     while (ex.sets.length < ex.targetSets) ex.sets.push({ weight: '', reps: '' });
     const info = exerciseInfo(ex.name);
+    const item = h('div', { class: 'ex-item' + (ex.done ? ' done' : '') });
 
-    const badge = h('span', { class: 'ex-badge' }, String(i + 1));
+    // tap-to-complete checkbox (shows the position number until done, then a check)
+    const check = h('button', {
+      class: 'ex-check', type: 'button', 'aria-pressed': String(!!ex.done), 'aria-label': `Mark ${ex.name} done`,
+      onClick: () => {
+        ex.done = !ex.done;
+        item.classList.toggle('done', ex.done);
+        check.setAttribute('aria-pressed', String(ex.done));
+        check.textContent = ex.done ? '✓' : String(i + 1);
+        persistDay(day); updateProgress();
+      },
+    }, ex.done ? '✓' : String(i + 1));
+
     const status = h('span', { class: 'ex-status' });
-    const item = h('div', { class: 'ex-item' });
-
     const updateStatus = () => {
-      const done = ex.sets.filter((s) => num(s.reps) > 0).length;
-      const complete = done >= ex.targetSets && ex.targetSets > 0;
-      status.textContent = done ? `${done}/${ex.targetSets}` : `${ex.targetSets} × ${ex.targetReps}`;
-      status.classList.toggle('done', done > 0);
-      item.classList.toggle('done', complete);
-      badge.textContent = complete ? '✓' : String(i + 1);
-      updateProgress();
+      const logged = ex.sets.filter((s) => num(s.reps) > 0).length;
+      status.textContent = logged ? `${logged}/${ex.targetSets}` : `${ex.targetSets} × ${ex.targetReps}`;
+      status.classList.toggle('done', logged > 0);
     };
+
+    const head = h('button', {
+      class: 'ex-head', type: 'button', 'aria-expanded': 'false',
+      onClick: (e) => { const open = item.classList.toggle('open'); e.currentTarget.setAttribute('aria-expanded', String(open)); },
+    }, [
+      h('span', { class: 'ex-main' }, [
+        h('span', { class: 'ex-name' }, ex.name),
+        info.muscles ? h('span', { class: 'ex-muscle' }, info.muscles) : null,
+      ]),
+      h('span', { class: 'ex-right' }, [status, h('span', { class: 'ex-caret' }, '⌄')]),
+    ]);
 
     const setRows = h('div', { class: 'set-rows' });
     const addRow = (j) => setRows.append(setRow(ex, j, updateStatus, scheduleSave));
@@ -118,18 +133,9 @@ export async function renderDayLog(mount, dateKey, opts = {}) {
     const addBtn = h('button', { class: 'set-add', type: 'button', onClick: () => { ex.sets.push({ weight: '', reps: '' }); addRow(ex.sets.length - 1); } }, '+ Add set');
 
     item.append(
-      h('button', {
-        class: 'ex-head', type: 'button', 'aria-expanded': 'false',
-        onClick: (e) => { const open = item.classList.toggle('open'); e.currentTarget.setAttribute('aria-expanded', String(open)); },
-      }, [
-        badge,
-        h('span', { class: 'ex-main' }, [
-          h('span', { class: 'ex-name' }, ex.name),
-          info.muscles ? h('span', { class: 'ex-muscle' }, info.muscles) : null,
-        ]),
-        h('span', { class: 'ex-right' }, [status, h('span', { class: 'ex-caret' }, '⌄')]),
-      ]),
+      h('div', { class: 'ex-row-top' }, [check, head]),
       h('div', { class: 'ex-panel' }, [
+        replaceControl(ex),
         h('div', { class: 'set-grid-hd' }, [h('span', {}, 'Set'), h('span', {}, 'Weight'), h('span', {}, 'Reps')]),
         setRows, addBtn, howTo(ex.name),
       ])
@@ -138,10 +144,27 @@ export async function renderDayLog(mount, dateKey, opts = {}) {
     return item;
   }
 
-  function finisher(w) {
+  // "Replace exercise" — show fitting alternatives, tap one to swap it in
+  function replaceControl(ex) {
+    const optsBox = h('div', { class: 'replace-opts', hidden: true });
+    const btn = h('button', { class: 'replace-btn', type: 'button', onClick: () => {
+      if (!optsBox.hidden) { optsBox.hidden = true; return; }
+      const exclude = day.workout.exercises.map((e) => e.name);
+      const alts = suggestAlternatives(ex.name, profile, exclude);
+      clearNode(optsBox);
+      optsBox.append(h('div', { class: 'replace-hint muted small' }, alts.length ? 'Pick a swap that hits the same muscles:' : 'No good swap found for this one.'));
+      alts.forEach((a) => optsBox.append(h('button', { class: 'alt-chip', type: 'button', onClick: () => {
+        ex.name = a; ex.sets = []; ex.done = false; persistDay(day); reRender();
+      } }, a)));
+      optsBox.hidden = false;
+    } }, '⇄  Replace exercise');
+    return h('div', { class: 'replace' }, [btn, optsBox]);
+  }
+
+  function finisher(w, updateProgress) {
     const card = h('button', {
       class: 'finisher' + (w.cardioDone ? ' done' : ''), type: 'button',
-      onClick: () => { w.cardioDone = !w.cardioDone; card.classList.toggle('done', w.cardioDone); persistDay(day); },
+      onClick: () => { w.cardioDone = !w.cardioDone; card.classList.toggle('done', w.cardioDone); persistDay(day); updateProgress(); },
     }, [
       h('span', { class: 'finisher-check' }, w.cardioDone ? '✓' : ''),
       h('span', { class: 'finisher-main' }, [h('span', { class: 'finisher-label' }, 'Finish with'), h('span', { class: 'finisher-text' }, w.cardio)]),
@@ -197,7 +220,7 @@ export async function renderDayLog(mount, dateKey, opts = {}) {
   }
 }
 
-/* set row: weight + reps inputs; logging a rep marks the set done */
+/* set row: weight + reps inputs; logging a rep marks the set's number */
 function setRow(ex, j, updateStatus, scheduleSave) {
   const row = h('div', { class: 'set-row' });
   const mk = (field, ph) => {

@@ -1,6 +1,6 @@
 /* Service worker: precache the app shell so everything works offline at the gym.
    Bump CACHE whenever a precached file changes so clients pull the new copy. */
-const CACHE = 'trainer-v9';
+const CACHE = 'trainer-v10';
 
 const SHELL = [
   './',
@@ -30,8 +30,9 @@ const SHELL = [
 self.addEventListener('install', (e) => {
   e.waitUntil(
     caches.open(CACHE)
-      // addAll is atomic; if one asset 404s the whole install fails. Add tolerantly.
-      .then((c) => Promise.allSettled(SHELL.map((u) => c.add(u))))
+      // Add tolerantly (one 404 won't fail the whole install), and bypass the
+      // HTTP cache so a version bump always precaches the freshest files.
+      .then((c) => Promise.allSettled(SHELL.map((u) => c.add(new Request(u, { cache: 'reload' })))))
       .then(() => self.skipWaiting())
   );
 });
