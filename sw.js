@@ -1,6 +1,6 @@
 /* Service worker: precache the app shell so everything works offline at the gym.
    Bump CACHE whenever a precached file changes so clients pull the new copy. */
-const CACHE = 'trainer-v11';
+const CACHE = 'trainer-v12';
 
 const SHELL = [
   './',
@@ -15,11 +15,13 @@ const SHELL = [
   './js/log.js',
   './js/generator.js',
   './js/exercises.js',
+  './js/exercise-db.js',
   './js/screens/onboarding.js',
   './js/screens/today.js',
   './js/screens/daylog.js',
   './js/screens/calendar.js',
   './js/screens/progress.js',
+  './js/screens/replace.js',
   './icons/icon.svg',
   './icons/icon-192.png',
   './icons/icon-512.png',

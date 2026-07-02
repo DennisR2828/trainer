@@ -5,9 +5,11 @@
  * when DIET_ENABLED (see config.js). */
 
 import { h, clearNode, ring, num } from '../ui.js';
-import { getPlan, getProfile } from '../db.js';
+import { getPlan, getProfile, savePlan } from '../db.js';
 import { loadDay, persistDay, foodTotals, uid } from '../log.js';
-import { exerciseInfo, demoSearchUrl, suggestAlternatives } from '../exercises.js';
+import { exerciseInfo, demoSearchUrl } from '../exercises.js';
+import { muscleLabel } from '../exercise-db.js';
+import { renderReplaceList } from './replace.js';
 import { DIET_ENABLED } from '../config.js';
 
 export async function renderDayLog(mount, dateKey, opts = {}) {
@@ -112,7 +114,7 @@ export async function renderDayLog(mount, dateKey, opts = {}) {
     }, [
       h('span', { class: 'ex-main' }, [
         h('span', { class: 'ex-name' }, ex.name),
-        info.muscles ? h('span', { class: 'ex-muscle' }, info.muscles) : null,
+        (info.muscles || muscleLabel(ex.name)) ? h('span', { class: 'ex-muscle' }, info.muscles || muscleLabel(ex.name)) : null,
       ]),
       h('span', { class: 'ex-right' }, [
         h('span', { class: 'ex-status' }, `${ex.targetSets} × ${ex.targetReps}`),
@@ -122,26 +124,46 @@ export async function renderDayLog(mount, dateKey, opts = {}) {
 
     item.append(
       h('div', { class: 'ex-row-top' }, [check, head]),
-      h('div', { class: 'ex-panel' }, [replaceControl(ex), howTo(ex.name)]),
+      h('div', { class: 'ex-panel' }, [replaceControl(ex, i), howTo(ex.name)]),
     );
     return item;
   }
 
-  // "Replace exercise" — show fitting alternatives, tap one to swap it in
-  function replaceControl(ex) {
-    const optsBox = h('div', { class: 'replace-opts', hidden: true });
+  // "Replace exercise" — ranked list scoped to the day; a pick saves to the plan
+  function replaceControl(ex, i) {
+    const panel = h('div', { class: 'replace-opts', hidden: true });
     const btn = h('button', { class: 'replace-btn', type: 'button', onClick: () => {
-      if (!optsBox.hidden) { optsBox.hidden = true; return; }
-      const exclude = day.workout.exercises.map((e) => e.name);
-      const alts = suggestAlternatives(ex.name, profile, exclude);
-      clearNode(optsBox);
-      optsBox.append(h('div', { class: 'replace-hint muted small' }, alts.length ? 'Pick a swap that hits the same muscles:' : 'No good swap found for this one.'));
-      alts.forEach((a) => optsBox.append(h('button', { class: 'alt-chip', type: 'button', onClick: () => {
-        ex.name = a; ex.sets = []; ex.done = false; persistDay(day); reRender();
-      } }, a)));
-      optsBox.hidden = false;
+      if (!panel.hidden) { panel.hidden = true; return; }
+      renderReplaceList(panel, {
+        exerciseName: ex.name,
+        dayExerciseNames: day.workout.exercises.map((e) => e.name),
+        profile,
+        onPick: (newName) => swapOnDay(i, newName),
+      });
+      panel.hidden = false;
     } }, '⇄  Replace exercise');
-    return h('div', { class: 'replace' }, [btn, optsBox]);
+    return h('div', { class: 'replace' }, [btn, panel]);
+  }
+
+  // swap on today's log AND in the plan template, so it sticks for future days
+  async function swapOnDay(i, newName) {
+    const ex = day.workout.exercises[i];
+    const oldName = ex.name;
+    ex.name = newName; ex.sets = []; ex.done = false;
+    await persistDay(day);
+    if (plan && plan.days) {
+      const p = (new Date(dateKey + 'T00:00:00').getDay() + 6) % 7;
+      const pd = plan.days[p];
+      if (pd && pd.exercises) {
+        let idx = pd.exercises.findIndex((e) => e.name.toLowerCase() === oldName.toLowerCase());
+        if (idx < 0) idx = i;
+        if (pd.exercises[idx]) {
+          pd.exercises[idx] = { name: newName, sets: pd.exercises[idx].sets, reps: pd.exercises[idx].reps };
+          await savePlan(plan);
+        }
+      }
+    }
+    reRender();
   }
 
   function finisher(w, updateProgress) {

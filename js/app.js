@@ -4,12 +4,13 @@
  * Today (scheduled workout + targets), Plan (read-only plan + re-run intake).
  * Placeholder (steps 4-7): Calendar, Progress, and the Today/diet logging UI. */
 
-import { isOnboarded, setFlag, saveProfile, savePlan, getPlan, exportAll, importAll, requestPersistence, todayKey } from './db.js';
+import { isOnboarded, setFlag, saveProfile, savePlan, getPlan, getProfile, exportAll, importAll, requestPersistence, todayKey } from './db.js';
 import { generatePlan } from './generator.js';
 import { renderOnboarding } from './screens/onboarding.js';
 import { renderToday } from './screens/today.js';
 import { renderCalendar } from './screens/calendar.js';
 import { renderProgress } from './screens/progress.js';
+import { renderReplaceList } from './screens/replace.js';
 
 const view = document.getElementById('view');
 const appbar = document.getElementById('appbar');
@@ -77,9 +78,9 @@ function navigate(route) {
   if (route === 'progress') return renderProgress(view);
 }
 
-/* ---- Plan screen: read-only view of the generated plan + re-run intake ---- */
+/* ---- Plan screen: editable plan (swap exercises) + re-run intake ---- */
 async function renderPlan(mount) {
-  const plan = await getPlan();
+  const [plan, profile] = await Promise.all([getPlan(), getProfile()]);
   mount.innerHTML = '';
   if (!plan) { mount.append(h('p', { class: 'muted pad' }, 'No plan yet.')); return; }
   const t = plan.targets;
@@ -88,11 +89,34 @@ async function renderPlan(mount) {
     h('div', { class: 'macro-lbl' }, label),
   ]);
 
-  const dayCards = plan.days.map((d) => h('div', { class: 'card' }, [
+  // tap a plan exercise to swap it; the pick saves to the plan for future days
+  const planRow = (d, k, e, j) => {
+    const panel = h('div', { class: 'replace-opts', hidden: true });
+    const head = h('button', { class: 'plan-ex', type: 'button', onClick: () => {
+      if (!panel.hidden) { panel.hidden = true; return; }
+      renderReplaceList(panel, {
+        exerciseName: e.name,
+        dayExerciseNames: d.exercises.map((x) => x.name),
+        profile,
+        onPick: async (newName) => {
+          plan.days[k].exercises[j] = { name: newName, sets: e.sets, reps: e.reps };
+          await savePlan(plan);
+          renderPlan(mount);
+        },
+      });
+      panel.hidden = false;
+    } }, [
+      h('span', { class: 'ex-name' }, e.name),
+      h('span', { class: 'ex-target' }, `${e.sets} × ${e.reps}`),
+      h('span', { class: 'plan-swap', 'aria-hidden': 'true' }, '⇄'),
+    ]);
+    return h('li', { class: 'plan-ex-item' }, [head, panel]);
+  };
+
+  const dayCards = plan.days.map((d, k) => h('div', { class: 'card' }, [
     h('div', { class: 'card-hd' }, [h('h3', {}, d.name), h('span', { class: 'card-sub' }, d.focus || '')]),
     d.exercises.length
-      ? h('ul', { class: 'ex-list' }, d.exercises.map((e) =>
-          h('li', { class: 'ex-row' }, [h('span', { class: 'ex-name' }, e.name), h('span', { class: 'ex-target' }, `${e.sets} × ${e.reps}`)])))
+      ? h('ul', { class: 'ex-list' }, d.exercises.map((e, j) => planRow(d, k, e, j)))
       : h('p', { class: 'muted small' }, 'Rest / active recovery.'),
     d.cardio ? h('div', { class: 'cardio-tag' }, `Finish: ${d.cardio}`) : null,
     d.note ? h('p', { class: 'muted small' }, d.note) : null,
