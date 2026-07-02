@@ -25,19 +25,33 @@ Read this first when resuming, then `README.md` for architecture.
   bar** ("X / Y done" across exercises + the cardio finisher; turns green at 100%).
 - Each exercise has a **tap-to-complete checkbox** (shows its number, flips to a ✓; row strikes
   through). This is the fast "I did my day" path — independent of logging sets.
-- **Replace exercise** (in the expanded panel): `suggestAlternatives()` in `exercises.js` offers
-  same-muscle swaps, filtered by the user's equipment + injuries. Tap a chip to swap it in.
+- The exercise dropdown shows only **how-to** (form cues + Watch demo) and **Replace** — no
+  per-set weight/reps logging (completion is the checkbox). Calendar/Progress "did the workout"
+  reads the checkboxes (`dayStatus` in `log.js`).
 - Interactive **cardio finisher** you tap to check off (counts toward the bar).
 - **Diet hidden** everywhere via `DIET_ENABLED` in `js/config.js` (flip to `true` to restore).
 - SW now precaches with `cache:'reload'` so version bumps reliably reach phones.
 
-All verified in-browser and deployed (v10).
+### Exercise database + persistent, day-scoped swaps (latest, v12)
+- **`js/exercise-db.js`** — curated ~120-move database across 14 muscle groups, each ordered
+  most-recommended first. `alternativesFor()` returns a ranked list **scoped to the muscle groups
+  the day trains** (a lower day never shows upper), same-muscle matches first, injury/equipment
+  filtered. `groupOf()` / `muscleLabel()` resolve any name (DB reverse-map + keyword fallback).
+- **`js/screens/replace.js`** — the shared ranked list UI: top-5 "Recommended" then "More options",
+  scrollable.
+- **Swaps persist to the plan.** Picking a swap updates `plan.days[p].exercises[i]` + `savePlan`,
+  so it sticks for every future occurrence of that day. Entry points: Today (`swapOnDay` in
+  `daylog.js`, maps date→plan-day by weekday) and the editable **Plan tab** (`planRow` in
+  `app.js` renderPlan). Rep scheme (sets × reps) is preserved on swap.
+
+All verified in-browser and deployed (v12).
 
 ## Ideas parked for next time
-- Show last-session weights as a hint on each exercise; PR tracking.
-- Per-exercise rest timer.
+- Plan tab: add/remove/reorder exercises (only swap-in-place exists so far).
+- Show last-session weights as a hint; PR tracking; per-exercise rest timer.
 - Re-enable diet when wanted (`DIET_ENABLED = true`).
 - Supabase sync (step 8) for multi-device.
+- To reset a mangled plan to the generator's original: Plan tab → Re-run intake.
 
 ---
 

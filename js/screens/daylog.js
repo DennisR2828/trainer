@@ -9,7 +9,7 @@ import { getPlan, getProfile, savePlan } from '../db.js';
 import { loadDay, persistDay, foodTotals, uid } from '../log.js';
 import { exerciseInfo, demoSearchUrl } from '../exercises.js';
 import { muscleLabel } from '../exercise-db.js';
-import { renderReplaceList } from './replace.js';
+import { openReplaceSheet } from './replace.js';
 import { DIET_ENABLED } from '../config.js';
 
 export async function renderDayLog(mount, dateKey, opts = {}) {
@@ -129,20 +129,15 @@ export async function renderDayLog(mount, dateKey, opts = {}) {
     return item;
   }
 
-  // "Replace exercise" — ranked list scoped to the day; a pick saves to the plan
+  // "Replace exercise" — opens the picker sheet; a pick saves to the plan
   function replaceControl(ex, i) {
-    const panel = h('div', { class: 'replace-opts', hidden: true });
-    const btn = h('button', { class: 'replace-btn', type: 'button', onClick: () => {
-      if (!panel.hidden) { panel.hidden = true; return; }
-      renderReplaceList(panel, {
-        exerciseName: ex.name,
-        dayExerciseNames: day.workout.exercises.map((e) => e.name),
-        profile,
-        onPick: (newName) => swapOnDay(i, newName),
-      });
-      panel.hidden = false;
-    } }, '⇄  Replace exercise');
-    return h('div', { class: 'replace' }, [btn, panel]);
+    const btn = h('button', { class: 'replace-btn', type: 'button', onClick: () => openReplaceSheet({
+      exerciseName: ex.name,
+      dayExerciseNames: day.workout.exercises.map((e) => e.name),
+      profile,
+      onPick: (newName) => swapOnDay(i, newName),
+    }) }, '⇄  Replace exercise');
+    return h('div', { class: 'replace' }, [btn]);
   }
 
   // swap on today's log AND in the plan template, so it sticks for future days

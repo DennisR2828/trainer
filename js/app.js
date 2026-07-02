@@ -10,7 +10,7 @@ import { renderOnboarding } from './screens/onboarding.js';
 import { renderToday } from './screens/today.js';
 import { renderCalendar } from './screens/calendar.js';
 import { renderProgress } from './screens/progress.js';
-import { renderReplaceList } from './screens/replace.js';
+import { openReplaceSheet } from './screens/replace.js';
 
 const view = document.getElementById('view');
 const appbar = document.getElementById('appbar');
@@ -89,29 +89,23 @@ async function renderPlan(mount) {
     h('div', { class: 'macro-lbl' }, label),
   ]);
 
-  // tap a plan exercise to swap it; the pick saves to the plan for future days
-  const planRow = (d, k, e, j) => {
-    const panel = h('div', { class: 'replace-opts', hidden: true });
-    const head = h('button', { class: 'plan-ex', type: 'button', onClick: () => {
-      if (!panel.hidden) { panel.hidden = true; return; }
-      renderReplaceList(panel, {
-        exerciseName: e.name,
-        dayExerciseNames: d.exercises.map((x) => x.name),
-        profile,
-        onPick: async (newName) => {
-          plan.days[k].exercises[j] = { name: newName, sets: e.sets, reps: e.reps };
-          await savePlan(plan);
-          renderPlan(mount);
-        },
-      });
-      panel.hidden = false;
-    } }, [
+  // tap a plan exercise to swap it (opens the picker sheet); saves to the plan
+  const planRow = (d, k, e, j) => h('li', { class: 'plan-ex-item' }, [
+    h('button', { class: 'plan-ex', type: 'button', onClick: () => openReplaceSheet({
+      exerciseName: e.name,
+      dayExerciseNames: d.exercises.map((x) => x.name),
+      profile,
+      onPick: async (newName) => {
+        plan.days[k].exercises[j] = { name: newName, sets: e.sets, reps: e.reps };
+        await savePlan(plan);
+        renderPlan(mount);
+      },
+    }) }, [
       h('span', { class: 'ex-name' }, e.name),
       h('span', { class: 'ex-target' }, `${e.sets} × ${e.reps}`),
       h('span', { class: 'plan-swap', 'aria-hidden': 'true' }, '⇄'),
-    ]);
-    return h('li', { class: 'plan-ex-item' }, [head, panel]);
-  };
+    ]),
+  ]);
 
   const dayCards = plan.days.map((d, k) => h('div', { class: 'card' }, [
     h('div', { class: 'card-hd' }, [h('h3', {}, d.name), h('span', { class: 'card-sub' }, d.focus || '')]),
