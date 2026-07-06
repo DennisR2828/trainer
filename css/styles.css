@@ -265,7 +265,10 @@ select.num-input { text-align: left; }
 .cal-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .cal-title { font-weight: 600; font-size: 1.05rem; }
 .cal-nav { background: var(--surface-2); border: 1px solid var(--line); color: var(--text); width: 40px; height: 40px; border-radius: 10px; font-size: 1.3rem; line-height: 1; }
-.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+/* minmax(0,1fr) not 1fr: 1fr === minmax(auto,1fr), whose auto min is inflated by
+   the cells' aspect-ratio, so the 7 tracks won't shrink to fit and the last
+   column overflows/clips. minmax(0,1fr) lets them share the width evenly. */
+.cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
 .cal-wd { text-align: center; color: var(--muted); font-size: .68rem; padding: 2px 0 4px; }
 .cal-cell {
   aspect-ratio: 1; background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
