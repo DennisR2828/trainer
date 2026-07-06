@@ -1,146 +1,224 @@
-# HANDOFF — Trainer (pick up anytime)
+# HANDOFF — Trainer (pick up from any session or machine)
 
-**App:** "Trainer" — local-first, mobile fitness + diet tracker PWA.
-**Last worked:** 2026-06-23.
+**App:** "Trainer" — a local-first, mobile fitness (and soon diet) tracker PWA.
+**Last updated:** 2026-07-02. **Deployed:** cache `trainer-v13`.
 
-Read this first when resuming, then `README.md` for architecture.
-
----
-
-## TL;DR — where we are right now
-
-- **Live on the phone** at **https://dennisr2828.github.io/trainer/** (GitHub Pages), cache `trainer-v10`.
-  Deployed = vibrant palette + SVG tab icons + notch fix + **Today redesign** (day hero, live
-  completion bar, exercise checkboxes, replace-exercise swap) + **diet hidden behind a flag**.
-- **No blocking open task.** Everything built so far is verified in-browser and pushed.
-- **Repo:** https://github.com/DennisR2828/trainer (PUBLIC) — under **DennisR2828**, the user's
-  own account. ⚠️ NOT cqdesignsny/Cesar. `gh` has both accounts and **the active one drifts back
-  to cqdesignsny** — always run `gh auth switch --user DennisR2828` and verify before any push.
+Read this first when resuming, then `README.md` for the fuller reference.
 
 ---
 
-## Recently shipped (Today tab, in `js/screens/daylog.js` + `css/styles.css`)
+## TL;DR — where we are
 
-- Bold **day hero**: focus eyebrow, big day name, exercise/cardio chips, and a **live completion
-  bar** ("X / Y done" across exercises + the cardio finisher; turns green at 100%).
-- Each exercise has a **tap-to-complete checkbox** (shows its number, flips to a ✓; row strikes
-  through). This is the fast "I did my day" path — independent of logging sets.
-- The exercise dropdown shows only **how-to** (form cues + Watch demo) and **Replace** — no
-  per-set weight/reps logging (completion is the checkbox). Calendar/Progress "did the workout"
-  reads the checkboxes (`dayStatus` in `log.js`).
-- Interactive **cardio finisher** you tap to check off (counts toward the bar).
-- **Diet hidden** everywhere via `DIET_ENABLED` in `js/config.js` (flip to `true` to restore).
-- SW now precaches with `cache:'reload'` so version bumps reliably reach phones.
+- **Live on the phone** at **https://dennisr2828.github.io/trainer/** (free GitHub Pages).
+- **Repo:** https://github.com/DennisR2828/trainer — **PUBLIC**, under **DennisR2828** (the user's
+  own GitHub). ⚠️ NOT `cqdesignsny` (that's a different/Cesar account). See "Deploying" for the
+  account gotcha.
+- **Stack:** zero-dependency, zero-build vanilla PWA — plain HTML + ES modules + IndexedDB. No
+  framework, no npm, no build step. Works fully offline once installed.
+- **State:** the workout side is feature-complete and polished. **Diet is built but hidden**
+  (behind a flag) and is the **next thing to work on** — see "What's next."
+- **Data is local-only** (in the browser, per device). No account, no cloud. Backups are manual
+  (Plan → Your data → Export).
 
-### Exercise database + persistent, day-scoped swaps (latest, v12)
-- **`js/exercise-db.js`** — curated ~120-move database across 14 muscle groups, each ordered
-  most-recommended first. `alternativesFor()` returns a ranked list **scoped to the muscle groups
-  the day trains** (a lower day never shows upper), same-muscle matches first, injury/equipment
-  filtered. `groupOf()` / `muscleLabel()` resolve any name (DB reverse-map + keyword fallback).
-- **`js/screens/replace.js`** — the shared ranked list UI: top-5 "Recommended" then "More options",
-  scrollable.
-- **Swaps persist to the plan.** Picking a swap updates `plan.days[p].exercises[i]` + `savePlan`,
-  so it sticks for every future occurrence of that day. Entry points: Today (`swapOnDay` in
-  `daylog.js`, maps date→plan-day by weekday) and the editable **Plan tab** (`planRow` in
-  `app.js` renderPlan). Rep scheme (sets × reps) is preserved on swap.
+---
 
-All verified in-browser and deployed (v12).
+## Pick it up on another computer
 
-## Ideas parked for next time
-- Plan tab: add/remove/reorder exercises (only swap-in-place exists so far).
+```bash
+git clone https://github.com/DennisR2828/trainer.git
+cd trainer
+python3 -m http.server 4178            # any static server works; SW needs http, not file://
+# open http://127.0.0.1:4178
+```
+
+- **Your logged data does NOT come with the repo** — it lives in each browser locally. To move it:
+  on the old device, app → **Plan → Your data → Export backup** (a JSON file); on the new device,
+  **Import backup**.
+- **To deploy from another machine**, you need the GitHub CLI authenticated as DennisR2828
+  (`gh auth login`) or git push credentials for that account. Then `git push` (see "Deploying").
+
+---
+
+## How to run + verify locally
+
+```bash
+cd ~/fitness-tracker
+python3 -m http.server 4178 --bind 127.0.0.1   # or double-click Trainer.command
+# open http://127.0.0.1:4178
+```
+
+### ⚠️ Dev caching gotcha (this WILL bite you)
+The service worker is cache-first, so edits don't show on a normal reload. To see changes:
+- **Easiest:** use an **incognito window** (no prior service worker there).
+- **Otherwise**, in the DevTools console:
+  ```js
+  (async () => {
+    for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister();
+    for (const k of await caches.keys()) await caches.delete(k);
+    location.reload();
+  })()
+  ```
+  then **reload a SECOND time** (the SW re-caches on the first reload, serves fresh on the second).
+  The SW precaches with `cache:'reload'` (bypasses the HTTP cache), so a version bump is reliable —
+  but the *local dev* view still needs the double-reload.
+
+---
+
+## Deploying (push → phone updates)
+
+```bash
+cd ~/fitness-tracker
+gh auth switch --user DennisR2828      # ⚠️ REQUIRED — see gotcha
+gh api user --jq .login                # MUST print DennisR2828 before you push
+git push origin main                   # GitHub Pages rebuilds
+```
+
+- ⚠️ **The active `gh` account keeps drifting back to `cqdesignsny`.** Always switch + verify
+  before any push. A guard like `A=$(gh api user --jq .login); [ "$A" = DennisR2828 ] || exit 1`
+  already caught a wrong-account push this session. The repo's git commit identity is set
+  repo-locally to DennisR2828 (global git config is untouched).
+- ⚠️ **Bump `CACHE` in `sw.js`** (`trainer-vN` → `vN+1`) whenever you change any **precached** file
+  (anything in the `SHELL` list), or phones won't pick up the change. Currently **v13**.
+- **GitHub Pages can be slow** (seen 2–5 min lately, occasionally congested). Verify it's live by
+  curling a changed file, e.g. `curl -s https://dennisr2828.github.io/trainer/sw.js | grep -o trainer-v[0-9]*`.
+- **On the iPhone:** open the app on wifi, then **close it fully and reopen** (the new service
+  worker installs in the background; the second open switches to it).
+
+---
+
+## What's DONE (feature by feature)
+
+**PWA shell** — `index.html`, `manifest.webmanifest`, `sw.js`. Installable, offline (cache-first
+precache of the whole app shell), app icons (incl. maskable + apple-touch), iOS home-screen support
+(status-bar `black` + `env(safe-area-inset-*)` so it clears the notch).
+
+**Data layer** — `js/db.js`. IndexedDB, abstracted behind functions (swap to cloud later touches
+only this file). Stores: `profile`, `plan`, `days` (one per YYYY-MM-DD), `meta`. Plus **backup
+export/import** (`exportAll`/`importAll`) and a `requestPersistence()` call so the browser won't
+evict data.
+
+**Onboarding → generator** — `js/screens/onboarding.js` (tap-to-answer intake quiz) →
+`js/generator.js` (Mifffin-St Jeor BMR → TDEE → calorie/macro targets, and a training split by
+days/week filtered for equipment + injuries). Lands on Today.
+
+**Today** — `js/screens/daylog.js`. Bold **day hero** with focus, chips, and a live **"X / Y done"
+completion bar** (exercises + cardio; turns green at 100%). Each exercise has a **tap-to-complete
+checkbox** (this is the fast "I did my day" path — no set logging). Tapping a row expands a
+**how-to** (form cues + "Watch demo" link) and a **Replace** button. Interactive **cardio finisher**.
+Per-set weight/reps logging was intentionally removed.
+
+**Calendar** — `js/screens/calendar.js`. Month grid; each day shows a check when the workout was
+done (reads the checkboxes via `dayStatus` in `log.js`). Tap a day → its log.
+
+**Progress** — `js/screens/progress.js`. Bodyweight line chart + quick weigh-in, plus a
+weekly + all-time summary of workouts done.
+
+**Plan (editable)** — in `js/app.js` (`renderPlan`). Shows targets + the weekly split, **swap any
+exercise** (opens the picker sheet), re-run intake, and the data backup controls.
+
+**Exercise database + swaps** — `js/exercise-db.js` (~120 moves across 14 muscle groups, ordered
+most-recommended first, with injury/equipment filtering) + `js/screens/replace.js`. Replace opens a
+**bottom sheet** picker (slides up over a dimmed backdrop; auto-dismisses on pick / backdrop / ✕ /
+Escape). The list is **scoped to the muscle groups the day trains** (a lower day never shows upper),
+ranked **same-muscle first as a top-5 "Recommended," then "More options."** A pick **persists to the
+plan template** (`plan.days[p].exercises[i]` + `savePlan`) so it sticks for future days. Works from
+Today AND the Plan tab.
+
+**Exercise how-to** — `exerciseInfo()`/`demoSearchUrl()` in `js/exercises.js`: target muscles +
+form cues + a "Watch demo" YouTube-search link, shown in each exercise's expanded panel.
+
+**Design** — vibrant cool palette on a deep near-black base: **electric-violet brand accent**
+(`--accent #9470ff`), jewel-tone macro data colors (magenta cal, green protein, blue carbs, cyan
+fat). Bundled **Archivo** font (offline). WCAG-AA contrast verified, `prefers-reduced-motion`
+handled, `:focus-visible` states. All tokens are CSS variables in `css/styles.css :root`.
+
+**Diet (built, HIDDEN)** — calorie/protein rings + quick food logging exist in `daylog.js`, gated
+behind `DIET_ENABLED` in `js/config.js` (currently `false`). See "What's next."
+
+---
+
+## ▶ What's NEXT — the diet section (the user's active request)
+
+We paused mid-request to write these docs. The plan the user described:
+
+- **Make Diet its own TAB** (a 5th tab), not tucked under Today.
+- Leave a **small blip on Today** — a nudge like "What are you eating today?" linking to the Diet tab.
+- **Research** what dieticians / personal trainers actually recommend for **breakfast, lunch, dinner**,
+  and glance at how other diet apps structure theirs.
+- Build a **food/meal database** the same way we did the exercise DB (`exercise-db.js`): easy-to-make
+  meals, tagged with calories, protein, and the rest of the macros. Basic + intermediate.
+- Present it "whatever way looks best" — likely: meal ideas per slot (breakfast/lunch/dinner) that
+  hit the user's protein/calorie targets, pickable like the exercise swap sheet.
+- Diet logging (rings, food entry) is already built behind `DIET_ENABLED = true` in `js/config.js` —
+  flipping that restores the current diet UI on Today/Calendar. The new work reshapes it into its own
+  tab + adds the meal database.
+
+**Where to start:** add a `diet` route + tab in `js/app.js` and `index.html`; build
+`js/food-db.js` (mirror `exercise-db.js`); build `js/screens/diet.js`; wire a Today nudge; flip
+`DIET_ENABLED` on (or replace it with the new tab).
+
+### Other parked ideas
+- Plan tab: add / remove / reorder exercises (only swap-in-place exists today).
 - Show last-session weights as a hint; PR tracking; per-exercise rest timer.
-- Re-enable diet when wanted (`DIET_ENABLED = true`).
-- Supabase sync (step 8) for multi-device.
-- To reset a mangled plan to the generator's original: Plan tab → Re-run intake.
+- Supabase sync so friends get accounts + multi-device (the data layer is abstracted for it).
+- Reset a mangled plan → Plan tab → Re-run intake (already works).
 
 ---
 
-## How to run / verify locally
+## Key decisions / gotchas (don't re-litigate)
 
-```bash
-cd ~/fitness-tracker
-python3 -m http.server 4178 --bind 127.0.0.1
-# open http://127.0.0.1:4178   (or double-click Trainer.command)
-```
-
-### Dev caching gotcha (important — this is what bit us)
-The service worker is cache-first, so edits don't show on reload. To see changes, in DevTools
-console (or just use an **incognito window**, which is cleanest):
-```js
-(async () => {
-  for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister();
-  for (const k of await caches.keys()) await caches.delete(k);
-  location.reload();
-})()
-```
-Then **reload one more time** (the SW re-caches on the first reload, serves fresh on the second).
-If still stale, hard-bypass: `fetch('js/screens/daylog.js',{cache:'reload'})` for the changed files,
-then reload. Bumping `CACHE` in `sw.js` is required for real users to get updates, but does NOT
-help local dev because the SW install re-fetches through the HTTP cache.
-
----
-
-## Deploy (push → phone updates)
-
-```bash
-cd ~/fitness-tracker
-gh api user --jq .login          # MUST print DennisR2828 (if not: gh auth switch --user DennisR2828)
-git push origin main             # GitHub Pages rebuilds in ~1 min
-```
-Then on the iPhone: open the app on wifi, **close it fully and reopen** (the new service worker
-installs in the background; the second open switches to it). If the very top ever looks tight
-against the notch, **remove + re-add to Home Screen** (iOS caches the status-bar meta at install).
-
-⚠️ When you change any **precached** file (anything in `SHELL` in `sw.js`), **bump `CACHE`**
-(`trainer-vN` → `vN+1`) or phones won't pick up the change. Currently at **v9**.
-
----
-
-## What's done (MVP steps 1–7, per the original spec §6)
-
-1. PWA shell (manifest, service worker, offline, installable) ✓
-2. IndexedDB data layer (`js/db.js`) ✓
-3. Onboarding quiz → generator (calories/macros + split) → save ✓
-4. Today: workout set logging (+ diet, now flag-hidden) ✓
-5. Calendar (centerpiece): month grid, per-day status, tap to log ✓
-6. Plan: read-only plan + re-run intake + **data backup export/import** ✓
-7. Progress: bodyweight chart + weigh-in + weekly/all-time summary ✓
-8. (Phase 2, not started) Supabase sync — data layer is abstracted for it.
-
-Plus: exercise how-to cues + "Watch demo" links; **vibrant violet/jewel-tone design** on Archivo;
-local-run helpers (`Trainer.command`, optional `enable-autostart.command`); GitHub + Pages hosting.
-
----
-
-## Key facts / decisions (don't re-litigate)
-
-- **GitHub account = DennisR2828** (personal). cqdesignsny is Cesar's — never push there.
-  Commit identity is set repo-local to DennisR2828; global git config is untouched.
-- **Data is local-only**, per-device, in the browser (IndexedDB). No cloud, no account.
-  Backup via **Plan → Your data → Export** (the only safety net — remind the user occasionally).
-- **Design = CSS variables in `css/styles.css :root`.** Accent (violet `#9470ff`) is one line.
-  Macro colors: cal magenta, protein green, carbs blue, fat cyan. Type = bundled Archivo (offline).
+- **GitHub = DennisR2828, never cqdesignsny.** Switch + verify before every push.
+- **Data is local-only, per browser.** The only backup is Plan → Your data → Export. Remind the user.
+- **iOS install:** Safari → Share → **Add to Home Screen**, then **onboard inside the installed app**
+  (iOS gives the home-screen app its own storage, separate from the Safari tab).
+- **The user does not log weights/reps** — the app is a check-off + how-to + swap tool. Diet logging
+  is also opt-in. Keep it fast; don't re-add friction without being asked.
+- **Design lives in `css/styles.css :root`.** Accent is one line (`--accent`). Macro colors are for
+  data only (rings/tiles), not chrome.
 - **Generator coefficients** are tunable constants atop `js/generator.js`. Reference user
-  (M/26/6'0"/257) → 2240/210/215/60.
-- **iOS:** status-bar style `black` (reserves notch space) + `env(safe-area-inset-*)` used directly
-  (not via a CSS var — that was unreliable on iOS).
+  (M/26/6'0"/257 lb/sitting) → **2240 cal / 210 P / 215 C / 60 F**.
 
 ---
 
-## File map (the bits you'll touch)
+## File map
 
 ```
-js/config.js              feature flags (DIET_ENABLED)
-js/screens/daylog.js      Today + Calendar day view (the redesign lives here)
-js/screens/calendar.js    month grid
-js/screens/progress.js    bodyweight + summaries
-js/generator.js           calories/macros + split logic
-js/exercises.js           exercise library, filters, how-to cues
+index.html                app shell (appbar, #view, bottom tab bar) + PWA/iOS meta
+manifest.webmanifest      PWA manifest
+sw.js                     service worker (precache SHELL; bump CACHE on precached-file changes)
 css/styles.css            all styles + :root design tokens
-sw.js                     service worker (bump CACHE when precached files change)
+fonts/archivo.woff2       bundled font (offline)
+icons/                    app icons (gen_icons.py regenerates the PNGs)
+js/
+  app.js                  boot, SW registration, first-run routing, tab router, Plan screen
+  config.js               feature flags (DIET_ENABLED)
+  db.js                   IndexedDB data layer + backup export/import (only storage touchpoint)
+  ui.js                   shared DOM helper (h) + SVG progress ring
+  log.js                  day-log helpers: load/init a day, totals, workout status, weigh-ins
+  generator.js            calorie/macro math + training-split assembly
+  exercises.js            exercise library (templates), equipment/injury filters, how-to cues
+  exercise-db.js          ~120-move database + ranked, day-scoped swap suggestions
+  screens/
+    onboarding.js         intake quiz → plan preview
+    today.js              thin wrapper → daylog for today
+    daylog.js             the workout view (Today + Calendar day): hero, checkboxes, finisher
+    calendar.js           month grid; per-day status; tap a day to open its log
+    progress.js           bodyweight chart + weigh-in + weekly/all-time summary
+    replace.js            the "Replace exercise" bottom-sheet picker
+Trainer.command           double-click launcher (local Mac server + open browser)
+enable/disable-autostart.command   optional: run the local server at login (opt-in)
+LOCAL-SETUP.md            full guide to running/installing locally on a Mac
+README.md                 project reference
 ```
 
-## Ideas parked for later
-- Re-enable diet (`DIET_ENABLED = true`) when the user wants to track food.
-- Supabase sync (step 8) for multi-device.
-- Optional: per-exercise rest timer, last-session weights shown as a hint, PR tracking.
+## Commit history (what shipped, newest first)
+```
+82bd67b  Replace picker as a bottom sheet (auto-dismiss, more distinct)
+2098b8e  Exercise database + persistent, day-scoped swaps + editable Plan
+7e15deb  Today: drop per-set logging; expand shows only how-to + replace
+67e18c9  Today: tap-to-complete checkbox + replace-exercise swap
+b3a154e  Today redesign (day hero + progress + completion), diet behind flag
+d031dab  Redesign: vibrant cool palette, SVG tab icons, notch-safe top
+b939637  Initial: local-first fitness & diet tracker PWA (onboarding→generator, Today,
+         Calendar, Progress, Plan, backup, offline, GitHub Pages)
+```
