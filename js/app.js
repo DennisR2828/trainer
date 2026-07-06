@@ -174,6 +174,19 @@ function registerSW() {
   if (!('serviceWorker' in navigator)) return;
   // SW needs a server origin (https or http://localhost); silently skip on file://
   if (location.protocol === 'file:') return;
+  // If the page is already SW-controlled, a later controller change means a NEW
+  // version activated (the SW uses skipWaiting + clients.claim). Reload once so we
+  // run the fresh JS instead of a stale mix of new HTML + old modules — the exact
+  // thing that made a new tab appear but not route. (Skip on first-ever load, when
+  // there's no controller yet, so the initial claim doesn't cause a reload.)
+  if (navigator.serviceWorker.controller) {
+    let reloading = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (reloading) return;
+      reloading = true;
+      location.reload();
+    });
+  }
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch((err) => console.warn('SW registration failed:', err));
   });
