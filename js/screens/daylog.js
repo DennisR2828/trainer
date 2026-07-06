@@ -5,7 +5,7 @@
  * when DIET_ENABLED (see config.js). */
 
 import { h, clearNode, ring, num } from '../ui.js';
-import { getPlan, getProfile, savePlan } from '../db.js';
+import { getPlan, getProfile, savePlan, todayKey } from '../db.js';
 import { loadDay, persistDay, foodTotals, uid } from '../log.js';
 import { exerciseInfo, demoSearchUrl } from '../exercises.js';
 import { muscleLabel } from '../exercise-db.js';
@@ -39,6 +39,8 @@ export async function renderDayLog(mount, dateKey, opts = {}) {
     wrap.append(dietHost);
     renderDiet(dietHost);
   }
+  // Diet lives in its own tab now; on today's view, leave a slim nudge toward it.
+  if (!opts.onBack && dateKey === todayKey() && !DIET_ENABLED) wrap.append(dietNudge());
   mount.append(wrap);
 
   /* ---------- workout ---------- */
@@ -217,6 +219,29 @@ export async function renderDayLog(mount, dateKey, opts = {}) {
     const add = h('button', { class: 'btn btn-primary', type: 'button', onClick: submit }, 'Add');
     [name, cal, pro].forEach((i) => i.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); }));
     return h('div', { class: 'food-add-form' }, [name, h('div', { class: 'food-add-row' }, [cal, pro, add])]);
+  }
+
+  /* ---------- diet nudge (today only): a slim card that opens the Diet tab ---------- */
+  function dietNudge() {
+    const totals = foodTotals(day);
+    const proLeft = Math.round(targets.protein - totals.protein);
+    const calLeft = Math.round(targets.calories - totals.calories);
+    const line = !day.food.length ? 'What are you eating today?'
+      : (proLeft > 0 ? `${proLeft}g protein to go` : 'Protein goal hit 💪');
+    const sub = !day.food.length ? 'Plan your meals in Diet'
+      : (calLeft >= 0 ? `${calLeft} cal left today` : `${-calLeft} cal over`);
+    return h('button', { class: 'diet-nudge', type: 'button', onClick: goToDiet }, [
+      h('span', { class: 'diet-nudge-ico', 'aria-hidden': 'true' }, '🍽'),
+      h('span', { class: 'diet-nudge-main' }, [
+        h('span', { class: 'diet-nudge-line' }, line),
+        h('span', { class: 'diet-nudge-sub' }, sub),
+      ]),
+      h('span', { class: 'diet-nudge-go', 'aria-hidden': 'true' }, '→'),
+    ]);
+  }
+  function goToDiet() {
+    const tab = document.querySelector('.tab[data-route="diet"]');
+    if (tab) tab.click();
   }
 }
 

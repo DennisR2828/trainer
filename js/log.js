@@ -1,6 +1,6 @@
 /* Day-log data helpers, layered on db.js. A "day" record:
  *   { date, workout:{ dayName, focus, cardio, note, exercises:[{name,targetSets,targetReps,sets:[{weight,reps}]}] }|null,
- *     food:[{id,name,calories,protein}], steps, bodyweight, updatedAt }
+ *     food:[{id,name,calories,protein,carbs,fat,slot}], steps, bodyweight, updatedAt }
  * Un-logged days are materialized from the plan's scheduled day but not saved
  * until the user actually logs something (avoids empty rows for every date). */
 
@@ -51,8 +51,13 @@ export function persistDay(day) {
 
 export function foodTotals(day) {
   return (day.food || []).reduce(
-    (t, f) => ({ calories: t.calories + num(f.calories), protein: t.protein + num(f.protein) }),
-    { calories: 0, protein: 0 }
+    (t, f) => ({
+      calories: t.calories + num(f.calories),
+      protein: t.protein + num(f.protein),
+      carbs: t.carbs + num(f.carbs),
+      fat: t.fat + num(f.fat),
+    }),
+    { calories: 0, protein: 0, carbs: 0, fat: 0 }
   );
 }
 

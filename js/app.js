@@ -1,8 +1,9 @@
 /* App shell: service-worker registration, first-run routing, bottom-nav router.
  *
- * Fully built (steps 1-3): PWA shell, data layer, onboarding -> generator -> save,
- * Today (scheduled workout + targets), Plan (read-only plan + re-run intake).
- * Placeholder (steps 4-7): Calendar, Progress, and the Today/diet logging UI. */
+ * Tabs: Today (scheduled workout + targets), Calendar (month grid), Plan
+ * (editable — swap exercises, re-run intake, data backup), Progress (bodyweight
+ * chart + weekly/all-time summaries). The diet logging UI is built but gated
+ * behind DIET_ENABLED in config.js. */
 
 import { isOnboarded, setFlag, saveProfile, savePlan, getPlan, getProfile, exportAll, importAll, requestPersistence, todayKey } from './db.js';
 import { generatePlan } from './generator.js';
@@ -10,6 +11,7 @@ import { renderOnboarding } from './screens/onboarding.js';
 import { renderToday } from './screens/today.js';
 import { renderCalendar } from './screens/calendar.js';
 import { renderProgress } from './screens/progress.js';
+import { renderDiet } from './screens/diet.js';
 import { openReplaceSheet } from './screens/replace.js';
 
 const view = document.getElementById('view');
@@ -28,7 +30,7 @@ const h = (tag, props = {}, kids = []) => {
   return n;
 };
 
-const TITLES = { today: 'Today', calendar: 'Calendar', plan: 'Plan', progress: 'Progress' };
+const TITLES = { today: 'Today', diet: 'Diet', calendar: 'Calendar', plan: 'Plan', progress: 'Progress' };
 
 registerSW();
 requestPersistence(); // keep local data from being evicted
@@ -73,6 +75,7 @@ function navigate(route) {
   tabbar.querySelectorAll('.tab').forEach((b) => b.classList.toggle('is-active', b.dataset.route === route));
   view.scrollTop = 0;
   if (route === 'today') return renderToday(view);
+  if (route === 'diet') return renderDiet(view);
   if (route === 'plan') return renderPlan(view);
   if (route === 'calendar') return renderCalendar(view);
   if (route === 'progress') return renderProgress(view);

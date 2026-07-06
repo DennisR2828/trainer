@@ -66,16 +66,16 @@ button { font: inherit; cursor: pointer; }
   max-width: var(--maxw); margin: 0 auto;
   height: calc(var(--tab-h) + env(safe-area-inset-bottom, 0px));
   padding-bottom: env(safe-area-inset-bottom, 0px);
-  display: grid; grid-template-columns: repeat(4, 1fr);
+  display: grid; grid-template-columns: repeat(5, 1fr);
   background: color-mix(in oklab, var(--surface) 92%, transparent); backdrop-filter: blur(12px);
   border-top: 1px solid var(--line);
 }
 .tab {
   background: none; border: 0; color: var(--muted);
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
-  font-size: .68rem; letter-spacing: .02em;
+  font-size: .64rem; letter-spacing: .01em;
 }
-.tab .tab-ico { width: 23px; height: 23px; }
+.tab .tab-ico { width: 22px; height: 22px; }
 .tab.is-active { color: var(--accent); font-weight: 600; }
 
 /* ---- cards ---- */
@@ -432,3 +432,76 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; } /
     scroll-behavior: auto !important;
   }
 }
+
+/* ---- Diet tab ---- */
+/* carbs / fat mini-bars under the calorie + protein rings */
+.macro-mini { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 16px; }
+.mini-top { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 5px; }
+.mini-lbl { font-size: .7rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.mini-val { font-size: .78rem; color: var(--text); font-variant-numeric: tabular-nums; }
+.mini-bar { height: 6px; background: var(--surface-2); border-radius: 99px; overflow: hidden; }
+.mini-bar span { display: block; height: 100%; width: 100%; border-radius: 99px; transform-origin: left; transition: transform .35s ease; }
+.mini-carb .mini-bar span { background: var(--carb); }
+.mini-fat .mini-bar span { background: var(--fat); }
+
+/* one card per meal slot */
+.meal-slot { padding: 16px 18px; }
+.meal-slot-hd { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.meal-slot-title { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 1.05rem; letter-spacing: -0.01em; }
+.meal-slot-ico { font-size: 1rem; }
+.meal-slot-sum { font-size: .82rem; color: var(--pro); font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 700; }
+.meal-slot-sum.muted { color: var(--muted); font-weight: 400; }
+.meal-slot .food-list { margin-top: 10px; }
+.meal-add-btn {
+  width: 100%; margin-top: 12px; border-radius: 10px; padding: 11px; font-weight: 700; font-size: .9rem;
+  background: color-mix(in oklab, var(--accent) 8%, transparent);
+  border: 1px solid color-mix(in oklab, var(--accent) 32%, var(--line)); color: var(--accent);
+}
+.meal-add-btn:active { transform: scale(.99); }
+
+/* meal-idea rows inside the picker sheet */
+.meal-row { width: 100%; display: flex; align-items: center; gap: 12px; text-align: left; background: none; border: 0; border-top: 1px solid var(--line); color: var(--text); padding: 13px 18px; }
+.meal-row:active { background: color-mix(in oklab, var(--accent) 12%, transparent); }
+.alt-section + .meal-row { border-top: 0; }
+.meal-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.meal-row .meal-name { font-weight: 600; }
+.meal-how { font-size: .8rem; color: var(--muted); line-height: 1.35; }
+.meal-macros { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-top: 2px; }
+.mm { font-size: .74rem; font-variant-numeric: tabular-nums; font-weight: 700; color: var(--muted); }
+.mm-cal { color: var(--cal); }
+.mm-pro { color: var(--pro); }
+.mm-carb { color: var(--carb); }
+.mm-fat { color: var(--fat); }
+.meal-prep { font-size: .72rem; color: var(--muted); }
+.meal-prep::before { content: '·'; margin-right: 8px; color: var(--line); }
+.meal-add { flex: none; width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; background: color-mix(in oklab, var(--accent) 14%, transparent); color: var(--accent); font-size: 1.25rem; font-weight: 700; line-height: 1; }
+.sheet-goal { margin-top: 4px; }
+
+/* custom quick-add row (adds a slot picker vs. the workout diet form) */
+.food-add-row.four { grid-template-columns: 1fr 1fr 1.3fr auto; }
+
+/* Today -> Diet nudge (slim card) */
+.diet-nudge {
+  width: 100%; display: flex; align-items: center; gap: 12px; text-align: left; margin: 2px 0 14px;
+  background: color-mix(in oklab, var(--accent) 8%, var(--surface));
+  border: 1px solid color-mix(in oklab, var(--accent) 30%, var(--line));
+  border-radius: var(--radius); padding: 13px 15px; color: var(--text);
+}
+.diet-nudge:active { transform: scale(.99); }
+.diet-nudge-ico { flex: none; font-size: 1.3rem; }
+.diet-nudge-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.diet-nudge-line { font-weight: 700; letter-spacing: -0.01em; }
+.diet-nudge-sub { font-size: .8rem; color: var(--muted); }
+.diet-nudge-go { flex: none; color: var(--accent); font-size: 1.2rem; font-weight: 700; }
+
+/* protein-staples reference (collapsible) */
+.staples { padding: 0; }
+.staples-sum { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 16px 18px; font-weight: 800; font-size: 1.05rem; letter-spacing: -0.01em; cursor: pointer; list-style: none; }
+.staples-sum::-webkit-details-marker { display: none; }
+.staples-sum::after { content: '⌄'; color: var(--muted); font-size: 1rem; transition: transform .2s; }
+.staples[open] .staples-sum::after { transform: rotate(180deg); }
+.staple-list { list-style: none; margin: 0; padding: 0 18px 10px; }
+.staple-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 9px 0; border-top: 1px solid var(--line); }
+.staple-name { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.staple-per { font-size: .74rem; }
+.staple-macros { font-size: .82rem; color: var(--pro); font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 700; }

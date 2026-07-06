@@ -1,7 +1,7 @@
 # HANDOFF — Trainer (pick up from any session or machine)
 
 **App:** "Trainer" — a local-first, mobile fitness (and soon diet) tracker PWA.
-**Last updated:** 2026-07-02. **Deployed:** cache `trainer-v13`.
+**Last updated:** 2026-07-06. **Deployed:** cache `trainer-v14` (Diet tab).
 
 Read this first when resuming, then `README.md` for the fuller reference.
 
@@ -15,8 +15,8 @@ Read this first when resuming, then `README.md` for the fuller reference.
   account gotcha.
 - **Stack:** zero-dependency, zero-build vanilla PWA — plain HTML + ES modules + IndexedDB. No
   framework, no npm, no build step. Works fully offline once installed.
-- **State:** the workout side is feature-complete and polished. **Diet is built but hidden**
-  (behind a flag) and is the **next thing to work on** — see "What's next."
+- **State:** the workout side is feature-complete and polished. **Diet is now its own tab** —
+  a researched meal database + a per-slot "pick a meal" sheet ranked to your remaining macros.
 - **Data is local-only** (in the browser, per device). No account, no cloud. Backups are manual
   (Plan → Your data → Export).
 
@@ -116,7 +116,7 @@ weekly + all-time summary of workouts done.
 **Plan (editable)** — in `js/app.js` (`renderPlan`). Shows targets + the weekly split, **swap any
 exercise** (opens the picker sheet), re-run intake, and the data backup controls.
 
-**Exercise database + swaps** — `js/exercise-db.js` (~120 moves across 14 muscle groups, ordered
+**Exercise database + swaps** — `js/exercise-db.js` (~95 moves across 14 muscle groups, ordered
 most-recommended first, with injury/equipment filtering) + `js/screens/replace.js`. Replace opens a
 **bottom sheet** picker (slides up over a dimmed backdrop; auto-dismisses on pick / backdrop / ✕ /
 Escape). The list is **scoped to the muscle groups the day trains** (a lower day never shows upper),
@@ -132,30 +132,26 @@ form cues + a "Watch demo" YouTube-search link, shown in each exercise's expande
 fat). Bundled **Archivo** font (offline). WCAG-AA contrast verified, `prefers-reduced-motion`
 handled, `:focus-visible` states. All tokens are CSS variables in `css/styles.css :root`.
 
-**Diet (built, HIDDEN)** — calorie/protein rings + quick food logging exist in `daylog.js`, gated
-behind `DIET_ENABLED` in `js/config.js` (currently `false`). See "What's next."
+**Diet (its own tab)** — `js/screens/diet.js`. Calorie + protein rings (protein-first) with
+carbs/fat bars, a card per meal slot (breakfast/lunch/dinner/snack), and an "Add {slot}" that opens
+a ranked **meal-idea sheet** (`js/screens/meal-picker.js`) fitting the day's remaining calories/
+protein. Backed by `js/food-db.js` — ~57 dietitian/trainer-sourced high-protein meals (+ staples),
+macro-validated (4·P + 4·C + 9·F ≈ kcal). A slim nudge on Today links here. `day.food` items now
+carry `carbs`, `fat` and `slot`. (The legacy inline diet card on the day log / calendar ring stays
+gated behind `DIET_ENABLED` in `js/config.js`, still `false`.)
 
 ---
 
-## ▶ What's NEXT — the diet section (the user's active request)
+## ▶ What's NEXT
 
-We paused mid-request to write these docs. The plan the user described:
+**The diet section is DONE** (2026-07-06): its own tab, `js/food-db.js` (~57 researched meals +
+staples), `js/screens/diet.js`, and the `js/screens/meal-picker.js` sheet, with a Today nudge —
+see "What's DONE" above. Natural follow-ups:
 
-- **Make Diet its own TAB** (a 5th tab), not tucked under Today.
-- Leave a **small blip on Today** — a nudge like "What are you eating today?" linking to the Diet tab.
-- **Research** what dieticians / personal trainers actually recommend for **breakfast, lunch, dinner**,
-  and glance at how other diet apps structure theirs.
-- Build a **food/meal database** the same way we did the exercise DB (`exercise-db.js`): easy-to-make
-  meals, tagged with calories, protein, and the rest of the macros. Basic + intermediate.
-- Present it "whatever way looks best" — likely: meal ideas per slot (breakfast/lunch/dinner) that
-  hit the user's protein/calorie targets, pickable like the exercise swap sheet.
-- Diet logging (rings, food entry) is already built behind `DIET_ENABLED = true` in `js/config.js` —
-  flipping that restores the current diet UI on Today/Calendar. The new work reshapes it into its own
-  tab + adds the meal database.
-
-**Where to start:** add a `diet` route + tab in `js/app.js` and `index.html`; build
-`js/food-db.js` (mirror `exercise-db.js`); build `js/screens/diet.js`; wire a Today nudge; flip
-`DIET_ENABLED` on (or replace it with the new tab).
+- **Capture a diet preference in onboarding** (omnivore / vegetarian / vegan). `food-db.js`'s ranker
+  already filters on `profile.diet` via `isAllowedFood` — onboarding just needs to set that field.
+- **Meal favorites / recents** + a "log again" shortcut; maybe portion scaling (½× / 2×).
+- Surface diet on **Calendar / Progress** (the calendar diet ring already exists behind `DIET_ENABLED`).
 
 ### Other parked ideas
 - Plan tab: add / remove / reorder exercises (only swap-in-place exists today).
@@ -197,7 +193,8 @@ js/
   log.js                  day-log helpers: load/init a day, totals, workout status, weigh-ins
   generator.js            calorie/macro math + training-split assembly
   exercises.js            exercise library (templates), equipment/injury filters, how-to cues
-  exercise-db.js          ~120-move database + ranked, day-scoped swap suggestions
+  exercise-db.js          ~95-move database + ranked, day-scoped swap suggestions
+  food-db.js              ~57-meal food database + target-aware meal suggestions
   screens/
     onboarding.js         intake quiz → plan preview
     today.js              thin wrapper → daylog for today
@@ -205,6 +202,8 @@ js/
     calendar.js           month grid; per-day status; tap a day to open its log
     progress.js           bodyweight chart + weigh-in + weekly/all-time summary
     replace.js            the "Replace exercise" bottom-sheet picker
+    diet.js               the Diet tab: rings, meal slots, custom add, staples
+    meal-picker.js        the "Add a meal" bottom-sheet picker (ranked to targets)
 Trainer.command           double-click launcher (local Mac server + open browser)
 enable/disable-autostart.command   optional: run the local server at login (opt-in)
 LOCAL-SETUP.md            full guide to running/installing locally on a Mac

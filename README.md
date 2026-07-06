@@ -3,7 +3,7 @@
 A mobile-first, **local-first**, **offline-first** workout tracker you install to your phone's home
 screen. It runs a first-time intake quiz, generates your calorie/macro targets and a training split,
 then gives you a fast check-off workout for each day with built-in how-to guidance and one-tap
-exercise swaps. A diet section is built and coming next.
+exercise swaps, plus a dedicated **Diet tab** with a researched meal database.
 
 - **Live:** https://dennisr2828.github.io/trainer/ (GitHub Pages)
 - **Repo:** https://github.com/DennisR2828/trainer
@@ -25,15 +25,17 @@ exercise swaps. A diet section is built and coming next.
   link) or to **Replace** it. An interactive cardio finisher rounds out the day.
 - **Replace any exercise.** Opens a bottom-sheet picker with a **ranked list scoped to that day's
   muscles** (a lower day only shows lower-body options) — a top-5 "Recommended" (best same-muscle
-  matches) then "More options." Picks **save to your plan**, so they stick for future days. ~120
+  matches) then "More options." Picks **save to your plan**, so they stick for future days. ~95
   exercises across 14 muscle groups, injury/equipment-aware.
 - **Calendar.** Month grid marking which days you worked out; tap a day to see/edit its log.
 - **Progress.** Bodyweight trend chart + quick weigh-in, plus weekly and all-time workout summaries.
 - **Editable Plan.** View and swap exercises for any day; re-run the intake to regenerate.
 - **Your data, on your device.** Everything is stored locally (IndexedDB). No account, works offline.
   Export/Import a backup JSON to move between devices.
-- **Diet (built, hidden for now).** Calorie/protein rings and food logging exist behind a feature
-  flag; the next milestone turns diet into its own tab with a meal database (see HANDOFF).
+- **Diet tab.** Its own tab with calorie + protein rings (protein-first) and carbs/fat bars, a card
+  per meal slot, and an **Add** that opens a meal-idea sheet **ranked to your remaining macros**. ~57
+  easy, high-protein meals (dietitian/trainer-sourced, macro-checked) plus protein staples live in
+  `js/food-db.js`; a slim nudge on Today links to it.
 
 ---
 
@@ -81,9 +83,11 @@ js/
   log.js                  day-log helpers (load/init a day, totals, status, weigh-ins)
   generator.js            calorie/macro math + split assembly
   exercises.js            exercise templates, equipment/injury filters, how-to cues
-  exercise-db.js          ~120-move database + ranked, day-scoped swap suggestions
+  exercise-db.js          ~95-move database + ranked, day-scoped swap suggestions
+  food-db.js              ~57-meal food database + target-aware meal suggestions
   screens/
     onboarding.js  today.js  daylog.js  calendar.js  progress.js  replace.js
+    diet.js  meal-picker.js
 ```
 
 **Data model (IndexedDB, via `db.js`):**
