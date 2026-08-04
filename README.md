@@ -30,8 +30,10 @@ exercise swaps, plus a dedicated **Diet tab** with a researched meal database.
 - **Calendar.** Month grid marking which days you worked out; tap a day to see/edit its log.
 - **Progress.** Bodyweight trend chart + quick weigh-in, plus weekly and all-time workout summaries.
 - **Editable Plan.** View and swap exercises for any day; re-run the intake to regenerate.
-- **Your data, on your device.** Everything is stored locally (IndexedDB). No account, works offline.
-  Export/Import a backup JSON to move between devices.
+- **Accounts + sync.** Email/password sign-in. Reads always come from local IndexedDB (so the app is
+  instant and works with no signal), and writes push to your account on a short debounce. Sign in on
+  any phone and your plan, workouts, and history come down with you. Two people can share a device —
+  each account gets its own local database. Export/Import a backup JSON still works.
 - **Diet tab.** Its own tab with calorie + protein rings (protein-first) and carbs/fat bars, a card
   per meal slot, and an **Add** that opens a meal-idea sheet **ranked to your remaining macros**. ~57
   easy, high-protein meals (dietitian/trainer-sourced, macro-checked) plus protein staples live in
@@ -71,14 +73,24 @@ On a Mac you can also just double-click **`Trainer.command`**. Full local/instal
 ```
 index.html                app shell + PWA / iOS meta
 manifest.webmanifest      PWA manifest
-sw.js                     service worker (precache app shell for offline; bump CACHE on changes)
+sw.js                     service worker (precache shell; bump CACHE on changes; skips /api)
+vercel.json               static hosting headers (sw.js/index.html must never be cached)
+package.json              exists only for the /api functions — the client has no dependencies
 css/styles.css            all styles + :root design tokens
 fonts/archivo.woff2       bundled font
 icons/                    app icons (gen_icons.py regenerates PNGs)
+api/                      Vercel Functions (Node)
+  _lib/auth.js            scrypt password hashing + HMAC session tokens (node:crypto only)
+  _lib/store.js           Vercel Blob read/write + shared response helpers
+  auth/register.js        POST — create an account (gated by SIGNUP_CODE)
+  auth/login.js           POST — exchange email/password for a token
+  auth/me.js              GET  — validate a stored token on boot
+  data.js                 GET/PUT — pull and push this user's snapshot
 js/
-  app.js                  boot, SW registration, routing, bottom-nav, Plan screen
+  app.js                  boot, auth gate, SW registration, routing, bottom-nav, Plan screen
+  api.js                  the only module that knows about the session token
   config.js               feature flags (DIET_ENABLED)
-  db.js                   IndexedDB data layer + backup export/import (the only storage touchpoint)
+  db.js                   IndexedDB + sync (the only storage touchpoint)
   ui.js                   shared DOM helper + SVG progress ring
   log.js                  day-log helpers (load/init a day, totals, status, weigh-ins)
   generator.js            calorie/macro math + split assembly
@@ -86,18 +98,26 @@ js/
   exercise-db.js          ~95-move database + ranked, day-scoped swap suggestions
   food-db.js              ~57-meal food database + target-aware meal suggestions
   screens/
-    onboarding.js  today.js  daylog.js  calendar.js  progress.js  replace.js
-    diet.js  meal-picker.js
+    auth.js  onboarding.js  today.js  daylog.js  calendar.js  progress.js
+    replace.js  diet.js  meal-picker.js
 ```
 
-**Data model (IndexedDB, via `db.js`):**
+**Data model (IndexedDB, via `db.js`):** each account gets its own database, `trainer-u-<userId>`.
 - `profile` — intake answers (singleton).
 - `plan` — generated `targets` + `days` split (singleton); editing a workout writes here.
 - `days` — one record per `YYYY-MM-DD`: the day's workout (with per-exercise `done` flags), any
   weigh-in, and food (when diet is on).
 - `meta` — small flags (`onboarded`).
 
-Cloud sync (future) would replace the bodies of the `db.js` functions and nothing else.
+**Sync.** Local is the read path; nothing blocks on the network. A write marks the store dirty and
+pushes the whole snapshot after a 1.5s debounce, retrying when the connection returns and when the
+app is backgrounded. Server-side, the blob key comes from the verified session and never from the
+request body, so one account cannot address another's data.
+
+**Auth.** Passwords are hashed with scrypt (N=32768) and sessions are HMAC-SHA256 signed tokens,
+both from `node:crypto` — there is no auth dependency and no hand-rolled crypto. Signup requires
+`SIGNUP_CODE` because the app sits on a public URL. Rotating `SESSION_SECRET` invalidates every
+session at once.
 
 ## Design system
 

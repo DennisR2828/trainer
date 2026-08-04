@@ -1,7 +1,7 @@
 # HANDOFF — Trainer (pick up from any session or machine)
 
 **App:** "Trainer" — a local-first, mobile fitness (and soon diet) tracker PWA.
-**Last updated:** 2026-08-04. **Deployed:** cache `trainer-v16`, hosted on **Vercel**.
+**Last updated:** 2026-08-04. **Deployed:** cache `trainer-v17`, hosted on **Vercel**, with accounts.
 
 Read this first when resuming, then `README.md` for the fuller reference.
 
@@ -19,8 +19,9 @@ Read this first when resuming, then `README.md` for the fuller reference.
   framework, no npm, no build step. Works fully offline once installed.
 - **State:** the workout side is feature-complete and polished. **Diet is now its own tab** —
   a researched meal database + a per-slot "pick a meal" sheet ranked to your remaining macros.
-- **Data is local-only** (in the browser, per device). No account, no cloud. Backups are manual
-  (Plan → Your data → Export).
+- **Accounts are live.** Email/password sign-in, data synced to Vercel Blob. Reads still come from
+  local IndexedDB so the app works offline; writes push on a debounce. Signup needs `SIGNUP_CODE`.
+  Two users planned: Dennis and his girlfriend. Manual backup (Plan → Export) still works.
 
 ---
 
@@ -168,7 +169,37 @@ gated behind `DIET_ENABLED` in `js/config.js`, still `false`.)
 
 ---
 
+**Accounts + sync (2026-08-04)** — `api/` (Vercel Functions) + `js/api.js` + `js/screens/auth.js`.
+Email/password sign-in gates the app. Passwords use scrypt (N=32768) and sessions are HMAC-SHA256
+signed tokens, both from `node:crypto` — no auth dependency, no invented crypto. Storage is Vercel
+Blob (`trainer-data`, private): `users/<sha256(email)>.json`, `userids/<userId>.json` (reverse
+index), `data/<userId>.json` (the snapshot). `db.js` keeps IndexedDB as the read path and pushes the
+whole snapshot on a 1.5s debounce, retrying on reconnect and on backgrounding. Each account gets its
+own database (`trainer-u-<userId>`), so two people can share a phone.
+
+### Auth gotchas worth remembering
+- **Env vars:** `SESSION_SECRET` (rotating it signs everyone out), `SIGNUP_CODE` (signup gate — the
+  app is on a public URL), `BLOB_READ_WRITE_TOKEN` (auto-set by the Blob integration). All three are
+  set in Production, Preview, and Development.
+- Production/Preview env vars are **sensitive by default**, meaning write-only — `vercel env pull`
+  returns them blank. That is expected, not a failure. Pull from **development** to read a value.
+- `vercel env add` needs `--value X --yes` to run non-interactively; piping to stdin silently stores
+  an **empty string**. Preview additionally refuses both and needs the REST API (`POST /v10/projects/
+  <id>/env` with `target:["preview"]`).
+- The service worker **must skip `/api`** — its fetch handler is cache-first for every same-origin
+  GET, which would otherwise serve a stale signed-in state or one account's snapshot to the next
+  person who signs in on that device.
+- A failed `/api/auth/me` does **not** sign you out; only an explicit 401 does. Otherwise a dead
+  connection would lock you out of an offline-first app.
+
 ## ▶ What's NEXT
+
+**Rebuild the female programming.** The generator was tuned to one reference user (M/26/6'0"/257lb),
+so the women's plans are close to the men's with the same calorie math applied. Dennis's girlfriend
+is the second user; her real intake numbers and goal drive this. Needs research into what genuinely
+differs (goal, training age, recovery, cycle-aware loading) versus what is fitness-industry folklore
+about "training for women." Touches `js/generator.js` (coefficients + split assembly) and
+`js/exercises.js` / `js/exercise-db.js` (selection and ranking).
 
 **The diet section is DONE** (2026-07-06): its own tab, `js/food-db.js` (~57 researched meals +
 staples), `js/screens/diet.js`, and the `js/screens/meal-picker.js` sheet, with a Today nudge —
@@ -238,6 +269,8 @@ README.md                 project reference
 
 ## Commit history (what shipped, newest first)
 ```
+dac97e9  Accounts: email/password auth + per-user cloud sync on Vercel Blob
+12f158f  docs: hosting moved to Vercel; record the account + first-deploy gotchas
 839b1da  Vercel: drop unsupported key from vercel.json, ignore .vercel
 8b7632e  Vercel: static hosting config (never cache sw.js or index.html)
 547807f  SW: auto-reload on controllerchange so updates don't leave stale JS; cache v16
