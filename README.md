@@ -5,7 +5,7 @@ screen. It runs a first-time intake quiz, generates your calorie/macro targets a
 then gives you a fast check-off workout for each day with built-in how-to guidance and one-tap
 exercise swaps, plus a dedicated **Diet tab** with a researched meal database.
 
-- **Live:** https://dennisr2828.github.io/trainer/ (GitHub Pages)
+- **Live:** https://trainer-dman-industries.vercel.app (Vercel)
 - **Repo:** https://github.com/DennisR2828/trainer
 - **Stack:** zero dependencies, **zero build step** — plain HTML, CSS, and ES modules with IndexedDB.
   No framework, no npm, no bundler.
@@ -59,7 +59,7 @@ On a Mac you can also just double-click **`Trainer.command`**. Full local/instal
 
 ## Install on your phone (iOS)
 
-1. Open **https://dennisr2828.github.io/trainer/** in **Safari**.
+1. Open **https://trainer-dman-industries.vercel.app** in **Safari**.
 2. Share → **Add to Home Screen**.
 3. Open the new icon and go through the intake **there** (the installed app has its own storage,
    separate from Safari). After the first load it works fully offline.
@@ -117,10 +117,11 @@ tunable constants at the top of the file. Reference user (M, 26, 6'0", 257 lb, m
 
 ## Deploying
 
-Push to `main`; GitHub Pages rebuilds and serves the app. Two things to remember: the repo lives
-under the **DennisR2828** GitHub account (make sure `gh`/git is authenticated as that account before
-pushing), and **bump `CACHE` in `sw.js`** whenever a precached file changes so installed phones pull
-the update. See HANDOFF for the exact commands and the Pages/cache gotchas.
+Push to `main`; **Vercel** builds and deploys automatically. Two things to remember: the repo lives
+under the **DennisR2828** GitHub account and the Vercel project under Dennis's **personal** account
+(`dman-industries`) — never the cqdesignsny accounts — and **bump `CACHE` in `sw.js`** whenever a
+precached file changes so installed phones pull the update. See HANDOFF for the exact commands and
+the account/cache gotchas.
 
 ## License / notes
 

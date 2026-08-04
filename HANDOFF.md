@@ -1,7 +1,7 @@
 # HANDOFF — Trainer (pick up from any session or machine)
 
 **App:** "Trainer" — a local-first, mobile fitness (and soon diet) tracker PWA.
-**Last updated:** 2026-07-06. **Deployed:** cache `trainer-v14` (Diet tab).
+**Last updated:** 2026-08-04. **Deployed:** cache `trainer-v16`, hosted on **Vercel**.
 
 Read this first when resuming, then `README.md` for the fuller reference.
 
@@ -9,7 +9,9 @@ Read this first when resuming, then `README.md` for the fuller reference.
 
 ## TL;DR — where we are
 
-- **Live on the phone** at **https://dennisr2828.github.io/trainer/** (free GitHub Pages).
+- **Live on the phone** at **https://trainer-dman-industries.vercel.app** (Vercel, free tier).
+  ⚠️ Moved off GitHub Pages 2026-08-04. The old `dennisr2828.github.io/trainer/` URL still serves
+  the *old* build — different origin, so it also has its own separate IndexedDB data.
 - **Repo:** https://github.com/DennisR2828/trainer — **PUBLIC**, under **DennisR2828** (the user's
   own GitHub). ⚠️ NOT `cqdesignsny` (that's a different/Cesar account). See "Deploying" for the
   account gotcha.
@@ -66,23 +68,47 @@ The service worker is cache-first, so edits don't show on a normal reload. To se
 
 ## Deploying (push → phone updates)
 
+Hosting is **Vercel** as of 2026-08-04. The project is connected to this GitHub repo, so a push to
+`main` builds and deploys automatically — no CLI, no token needed.
+
 ```bash
 cd ~/fitness-tracker
 gh auth switch --user DennisR2828      # ⚠️ REQUIRED — see gotcha
 gh api user --jq .login                # MUST print DennisR2828 before you push
-git push origin main                   # GitHub Pages rebuilds
+git push origin main                   # Vercel builds and deploys
 ```
 
 - ⚠️ **The active `gh` account keeps drifting back to `cqdesignsny`.** Always switch + verify
   before any push. A guard like `A=$(gh api user --jq .login); [ "$A" = DennisR2828 ] || exit 1`
-  already caught a wrong-account push this session. The repo's git commit identity is set
-  repo-locally to DennisR2828 (global git config is untouched).
+  already caught a wrong-account push. The repo's git commit identity is set repo-locally to
+  DennisR2828 (global git config is untouched).
 - ⚠️ **Bump `CACHE` in `sw.js`** (`trainer-vN` → `vN+1`) whenever you change any **precached** file
-  (anything in the `SHELL` list), or phones won't pick up the change. Currently **v13**.
-- **GitHub Pages can be slow** (seen 2–5 min lately, occasionally congested). Verify it's live by
-  curling a changed file, e.g. `curl -s https://dennisr2828.github.io/trainer/sw.js | grep -o trainer-v[0-9]*`.
+  (anything in the `SHELL` list), or phones won't pick up the change. Currently **v16**.
+- Verify it's live by curling a changed file:
+  `curl -s https://trainer-dman-industries.vercel.app/sw.js | grep -o trainer-v[0-9]*`
 - **On the iPhone:** open the app on wifi, then **close it fully and reopen** (the new service
   worker installs in the background; the second open switches to it).
+
+### Vercel account gotcha (mirrors the GitHub one)
+The Vercel project lives under **`dman-industries`** — Dennis's **personal** Vercel
+(`dmanbananaman`), NOT the **cqdesignsny** Vercel where CQ Designs client work lives.
+
+- The Vercel **CLI's global login on this laptop is deliberately left as `cqdesignsny`.** Do not run
+  `vercel login` / `vercel logout` here — it would break client deploys from this machine.
+- If a CLI deploy is ever needed, use a scoped personal token instead of switching the login:
+  `vercel deploy --prod --token "$(cat ~/.trainer-vercel-token)"`. The `--token` flag overrides the
+  global login per-command, so `auth.json` is never rewritten.
+- Normally you shouldn't need the CLI at all — just push to `main`.
+
+### Things that will silently break a fresh Vercel project
+- **Deployment Protection is ON by default.** New projects 302 every visitor to a Vercel login wall,
+  which looks like the app is broken. It's disabled here (`ssoProtection: null`); if the app ever
+  starts redirecting to `vercel.com/login`, that's what came back on.
+- **`vercel.json` rejects unknown keys.** A stray `"comment"` field fails the whole deploy with
+  "Schema verification failed". JSON has no comments; don't add them.
+- **Vercel's GitHub App needs repo access.** If `vercel git connect` fails with a "typos or private
+  repo" error, the real cause is the App being installed with *selected repositories* that exclude
+  this one. Fix at github.com/settings/installations → Vercel → Configure.
 
 ---
 
@@ -212,6 +238,12 @@ README.md                 project reference
 
 ## Commit history (what shipped, newest first)
 ```
+839b1da  Vercel: drop unsupported key from vercel.json, ignore .vercel
+8b7632e  Vercel: static hosting config (never cache sw.js or index.html)
+547807f  SW: auto-reload on controllerchange so updates don't leave stale JS; cache v16
+7c435d2  Calendar: fix 7-column grid overflow on narrow screens; cache v15
+34039da  Diet: its own tab with a researched meal database + pick-a-meal sheet
+486db59  docs: comprehensive README + HANDOFF for resuming anywhere
 82bd67b  Replace picker as a bottom sheet (auto-dismiss, more distinct)
 2098b8e  Exercise database + persistent, day-scoped swaps + editable Plan
 7e15deb  Today: drop per-set logging; expand shows only how-to + replace
