@@ -126,7 +126,7 @@ export async function renderDayLog(mount, dateKey, opts = {}) {
 
     item.append(
       h('div', { class: 'ex-row-top' }, [check, head]),
-      h('div', { class: 'ex-panel' }, [replaceControl(ex, i), howTo(ex.name)]),
+      h('div', { class: 'ex-panel' }, [replaceControl(ex, i), howTo(ex.name, ex.rest)]),
     );
     return item;
   }
@@ -245,14 +245,15 @@ export async function renderDayLog(mount, dateKey, opts = {}) {
   }
 }
 
-/* how-to block: target muscles + form cues + watch-demo link */
-function howTo(name) {
+/* how-to block: target muscles + rest + form cues + watch-demo link */
+function howTo(name, rest) {
   const info = exerciseInfo(name);
   return h('div', { class: 'howto' }, [
     h('div', { class: 'howto-hd' }, [
       h('span', { class: 'howto-title' }, 'How to'),
       info.muscles ? h('span', { class: 'howto-muscles' }, info.muscles) : null,
     ]),
+    rest ? h('p', { class: 'howto-rest' }, `Rest about ${rest >= 60 ? `${Math.round(rest / 60 * 10) / 10} min` : `${rest}s`} between sets.`) : null,
     h('ul', { class: 'howto-cues' }, info.cues.map((c) => h('li', {}, c))),
     h('a', { class: 'demo-link', href: demoSearchUrl(name), target: '_blank', rel: 'noopener noreferrer' }, '▶ Watch demo'),
   ]);

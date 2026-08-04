@@ -197,6 +197,99 @@ export function applyInjuries(days, injuries = {}, equipment = 'full_gym') {
   }));
 }
 
+/* ---- rest intervals ----
+ * Trained women recover faster BETWEEN sets than men — in a matched multi-set
+ * protocol they completed roughly twice the total reps, with similar soreness
+ * and 1RM recovery afterward. The advantage is in the rest interval, not in
+ * slower fatigue within a set. So women get shorter defaults; the exercises are
+ * identical. Everything here is a starting point, not a rule to obey when a set
+ * genuinely needs more time.
+ */
+const REST_SECONDS = {
+  female: { compound: 120, isolation: 60, core: 45 },
+  male:   { compound: 150, isolation: 90, core: 60 },
+};
+const COMPOUND_RX = /press|row|pulldown|squat|deadlift|\brdl\b|romanian|lunge|hip thrust|pull-?up|chin-?up|step-?up|dip/i;
+const CORE_RX = /plank|knee raise|leg raise|dead bug|bird dog/i;
+
+export function applyRest(days, sex = 'male') {
+  const r = REST_SECONDS[sex] || REST_SECONDS.male;
+  return days.map((d) => ({
+    ...d,
+    exercises: d.exercises.map((e) => ({
+      ...e,
+      rest: CORE_RX.test(e.name) ? r.core : COMPOUND_RX.test(e.name) ? r.compound : r.isolation,
+    })),
+  }));
+}
+
+/* ---- volume scaling ----
+ * One multiplier carrying training age, sleep, stress, and sex. Clamped so no
+ * combination can push a day below 1 set or above 5.
+ *
+ * The remainder carries across the day on purpose. Rounding each exercise
+ * independently swallows any modest factor whole — 3 sets × 1.1 rounds back to
+ * 3, so a 10% bump changes literally nothing. Carrying the fraction means the
+ * day's total actually moves, and the extra sets land spread out instead of all
+ * on the first exercise. */
+export function scaleVolume(days, factor = 1) {
+  if (factor === 1) return days;
+  return days.map((d) => {
+    let carry = 0;
+    return {
+      ...d,
+      exercises: d.exercises.map((e) => {
+        const want = e.sets * factor + carry;
+        const sets = Math.max(1, Math.min(5, Math.round(want)));
+        carry = want - sets;
+        return { ...e, sets };
+      }),
+    };
+  });
+}
+
+/* ---- session length ----
+ * Templates list compounds first, so trimming from the end drops isolation work
+ * and keeps the movements that matter most. */
+const MAX_EXERCISES = { lte30: 4, 45: 5, 60: 6, '60plus': 8 };
+
+export function trimToSession(days, sessionLength) {
+  const cap = MAX_EXERCISES[sessionLength] ?? 6;
+  return days.map((d) =>
+    d.exercises.length <= cap
+      ? d
+      : { ...d, exercises: d.exercises.slice(0, cap), note: d.note || `Trimmed to ${cap} moves to fit your session length.` }
+  );
+}
+
+/* ---- life stage (female) ----
+ * Conservative defaults, not medical advice. Pregnancy and uncleared early
+ * postpartum swap hanging/supine core and unsupported single-leg work for
+ * options that load the abdominal wall and pelvic floor less. Anyone cleared by
+ * their provider gets the normal plan. */
+const LIFESTAGE_SUBS = [
+  [/hanging (knee|leg) raise/i, 'Standing knee raise'],
+  [/\bplank\b/i,                'Bird dog'],
+  [/sit-?up|crunch/i,           'Dead bug (feet down)'],
+  [/walking lunges?/i,          'Supported split squat'],
+];
+
+export function applyLifeStage(days, lifeStage, postpartumCleared) {
+  const conservative = lifeStage === 'pregnant'
+    || (lifeStage === 'postpartum' && postpartumCleared !== 'yes');
+  if (!conservative) return days;
+  return days.map((d) => ({
+    ...d,
+    note: d.note || 'Core and impact work kept gentle. Build back up as you feel ready.',
+    exercises: d.exercises.map((e) => {
+      for (const [rx, repl] of LIFESTAGE_SUBS) {
+        if (rx.test(e.name)) return { ...e, name: repl, note: 'gentler core' };
+      }
+      return e;
+    }),
+  }));
+}
+
 function clone(x) { return JSON.parse(JSON.stringify(x)); }
 
 /* ---- exercise how-to: target muscles + short form cues, for beginners ----

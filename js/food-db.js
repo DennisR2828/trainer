@@ -160,10 +160,44 @@ export const MEALS = [
 
 /* Soft dietary filter — only excludes if the profile actually declares a diet.
  * (Onboarding does not capture this yet; this keeps the ranker future-proof.) */
+/* Ingredient matching against the recipe text.
+ *
+ * The meals carry diet tags but no ingredient tags, so pescatarian and allergen
+ * filtering has to read the text. That is a heuristic, not a guarantee — it errs
+ * toward hiding a safe meal rather than showing an unsafe one, and nobody with a
+ * real allergy should trust it over reading the recipe. Tagging all ~57 meals
+ * properly would be the durable fix.
+ */
+const MEAT_RX = /chicken|beef|steak|pork|turkey|bacon|sausage|\bham\b|lamb|jerky|mince|ground meat/i;
+const FISH_RX = /salmon|tuna|shrimp|prawn|\bcod\b|tilapia|\bfish\b|sardine|seafood|crab|scallop/i;
+
+const AVOID_RX = {
+  dairy:     /yogurt|milk|cheese|cottage|whey|butter(?!\s*bean)|cream|greek/i,
+  gluten:    /bread|pasta|tortilla|wrap|bagel|cereal|granola|couscous|barley|cracker|\bbun\b|flour|oats?\b/i,
+  nuts:      /almond|peanut|walnut|cashew|pecan|pistachio|nut butter|\bnuts?\b/i,
+  shellfish: /shrimp|prawn|crab|lobster|scallop/i,
+  eggs:      /\beggs?\b|egg white/i,
+  soy:       /tofu|edamame|\bsoy\b|tempeh|miso|soya/i,
+};
+
+const foodText = (m) => `${m.name} ${m.how || ''}`;
+
 export function isAllowedFood(m, profile = {}) {
+  const text = foodText(m);
+
   const diet = profile && profile.diet;
-  if (diet === 'vegan') return m.tags.includes('vegan');
-  if (diet === 'vegetarian') return m.tags.includes('vegetarian') || m.tags.includes('vegan');
+  if (diet === 'vegan' && !m.tags.includes('vegan')) return false;
+  if (diet === 'vegetarian' && !(m.tags.includes('vegetarian') || m.tags.includes('vegan'))) return false;
+  if (diet === 'pescatarian') {
+    const veg = m.tags.includes('vegetarian') || m.tags.includes('vegan');
+    if (!veg && !FISH_RX.test(text)) return false;   // not vegetarian and no fish => meat
+    if (MEAT_RX.test(text)) return false;
+  }
+
+  for (const a of profile.avoids || []) {
+    const rx = AVOID_RX[a];
+    if (rx && rx.test(text)) return false;
+  }
   return true;
 }
 

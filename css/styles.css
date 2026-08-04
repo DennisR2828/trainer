@@ -196,6 +196,16 @@ select.num-input { text-align: left; }
 .auth-remember input { width: 20px; height: 20px; accent-color: var(--accent); flex: none; }
 .auth-toggle { margin-top: 18px; width: 100%; max-width: 340px; }
 
+/* intake: step counter + the plan's "here is why we did that" callouts */
+.ob-count { color: var(--muted); font-size: .78rem; font-variant-numeric: tabular-nums; flex: none; }
+.ob-callout {
+  background: color-mix(in oklab, var(--accent) 10%, transparent);
+  border: 1px solid color-mix(in oklab, var(--accent) 30%, transparent);
+  border-radius: 12px; padding: 12px 14px; margin: 12px 0 0;
+  font-size: .88rem; line-height: 1.5; color: var(--text);
+}
+.howto-rest { color: var(--muted); font-size: .84rem; margin: 0 0 8px; }
+
 /* summary */
 .steps-note { color: var(--muted); font-size: .9rem; text-align: center; margin: 14px 0 4px; }
 .plan-split { margin: 18px 0 8px; text-align: center; }

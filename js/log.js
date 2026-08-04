@@ -25,7 +25,7 @@ function freshDay(dateKey, plan) {
     date: dateKey,
     workout: sched ? {
       dayName: sched.name, focus: sched.focus || '', cardio: sched.cardio || null, note: sched.note || null,
-      exercises: sched.exercises.map((e) => ({ name: e.name, targetSets: e.sets, targetReps: e.reps, sets: [] })),
+      exercises: sched.exercises.map((e) => ({ name: e.name, targetSets: e.sets, targetReps: e.reps, rest: e.rest, sets: [] })),
     } : null,
     food: [], steps: null, bodyweight: null, _new: true,
   };

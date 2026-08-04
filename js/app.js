@@ -147,7 +147,7 @@ async function renderPlan(mount) {
       },
     }) }, [
       h('span', { class: 'ex-name' }, e.name),
-      h('span', { class: 'ex-target' }, `${e.sets} × ${e.reps}`),
+      h('span', { class: 'ex-target' }, e.rest ? `${e.sets} × ${e.reps} · ${e.rest}s` : `${e.sets} × ${e.reps}`),
       h('span', { class: 'plan-swap', 'aria-hidden': 'true' }, '⇄'),
     ]),
   ]);
@@ -172,6 +172,9 @@ async function renderPlan(mount) {
       ]),
       h('p', { class: 'muted small' }, `Steps ${t.steps.min.toLocaleString()}-${t.steps.max.toLocaleString()} daily. BMR ${t._debug.bmr}, TDEE ${t._debug.tdee}.`),
     ]),
+    // why the plan looks the way it does — surfaced once, not buried in a tooltip
+    ...((plan.notes || []).map((n) => h('p', { class: 'ob-callout' }, n))),
+
     h('div', { class: 'section-label' }, plan.splitName),
     ...dayCards,
     h('button', { class: 'btn btn-ghost btn-lg', type: 'button', onClick: startOnboarding }, 'Re-run intake'),
