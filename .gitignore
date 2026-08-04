@@ -2,3 +2,4 @@
 *.log
 icons/__pycache__/
 .claude/
+.vercel
