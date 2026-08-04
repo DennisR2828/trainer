@@ -16,7 +16,10 @@ export default guard(async function handler(req, res) {
 
   const expectedCode = process.env.SIGNUP_CODE;
   if (!expectedCode) return sendJson(res, 500, { error: 'Signups are not configured.' });
-  if (!safeEqual(code || '', expectedCode)) {
+  // Case- and whitespace-insensitive: it's a short code typed by hand on a
+  // phone, and a capital letter should not read as "wrong code".
+  const norm = (s) => String(s || '').trim().toLowerCase();
+  if (!safeEqual(norm(code), norm(expectedCode))) {
     return sendJson(res, 403, { error: 'That signup code is not right.' });
   }
 
