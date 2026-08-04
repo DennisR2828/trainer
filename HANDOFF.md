@@ -1,7 +1,7 @@
 # HANDOFF — Trainer (pick up from any session or machine)
 
 **App:** "Trainer" — a local-first, mobile fitness (and soon diet) tracker PWA.
-**Last updated:** 2026-08-04. **Deployed:** cache `trainer-v17`, hosted on **Vercel**, with accounts.
+**Last updated:** 2026-08-04. **Deployed:** cache `trainer-v18`, hosted on **Vercel**, with accounts.
 
 Read this first when resuming, then `README.md` for the fuller reference.
 
@@ -192,14 +192,51 @@ own database (`trainer-u-<userId>`), so two people can share a phone.
 - A failed `/api/auth/me` does **not** sign you out; only an explicit 401 does. Otherwise a dead
   connection would lock you out of an offline-first app.
 
+**Intake rebuilt as a trainer consultation (2026-08-04)** — `js/screens/onboarding.js`. ~29 questions,
+branched (27 male / 28 female / 29 if postpartum). Adds motivation, timeline, what derailed you last
+time, attitude to lifting heavy, **confidence**, a condensed PAR-Q, diet pattern, allergens, weight
+trend, and alcohol. Six previously-dead answers now drive the plan.
+
+### What sex actually changes — and what it deliberately does not
+Before this, `buildSplit()` never received `sex`; men and women got byte-identical workouts and the
+only difference in the whole app was one constant in the BMR formula. Now `sex` sets **rest
+intervals** (women 120s/60s vs men 150s/90s) and **nudges volume up ~10%** for women. Grounded in
+trained women completing ~2× the reps of men in a matched multi-set protocol with similar soreness
+and 1RM recovery — the advantage is between-set recovery, not slower fatigue.
+
+It does **not** change exercise selection. Same movement patterns for everyone.
+
+**There is deliberately no menstrual-cycle periodization.** Current evidence shows no effect of cycle
+phase on strength performance or adaptation, and umbrella reviews call programming around it
+premature. Lots of women's apps do it anyway. Don't add it without new evidence.
+
+Female **life stage** does change programming: irregular/absent cycles and early postpartum cap the
+deficit (low energy availability is the one harm this app could actively cause); pregnancy goes to
+maintenance; uncleared postpartum swaps hanging/supine core for gentler options.
+
+### Traps in this area
+- **`scaleVolume` carries its rounding remainder across the day on purpose.** Rounding each exercise
+  independently swallows any modest factor whole (3 sets × 1.1 → 3), which silently nulled the entire
+  female volume bump until it was fixed. Don't "simplify" it back.
+- **The PAR-Q section is recorded only** — it does not gate or soften the plan. That was an explicit
+  call for a two-person private app. Revisit if this ever goes wider.
+- `isAllowedFood()` filters allergens by **matching ingredient words in the recipe text**, because the
+  meals have diet tags but no ingredient tags. It is a heuristic. Tagging all ~57 meals properly is
+  the durable fix.
+- Reference-user regression is the acceptance check for generator changes:
+  M/26/6'0"/257lb/sitting → **2240 cal / 210P / 215C / 60F**.
+
 ## ▶ What's NEXT
 
-**Rebuild the female programming.** The generator was tuned to one reference user (M/26/6'0"/257lb),
-so the women's plans are close to the men's with the same calorie math applied. Dennis's girlfriend
-is the second user; her real intake numbers and goal drive this. Needs research into what genuinely
-differs (goal, training age, recovery, cycle-aware loading) versus what is fitness-industry folklore
-about "training for women." Touches `js/generator.js` (coefficients + split assembly) and
-`js/exercises.js` / `js/exercise-db.js` (selection and ranking).
+**Tune against real users.** The intake and the sex-aware generator are in (see "What's DONE"), but
+nobody has run it with real numbers yet. Dennis and his girlfriend sign up, run the intake, and the
+plans get judged against what they actually want. Expect tuning of the volume factor and the split
+templates rather than structural change.
+
+**Split templates are still one-size.** `pickTemplate()` returns the same day structures for
+everyone; only sets, rest, and substitutions vary. If the plans come back wrong for her, that is the
+next place to look — likely more direct glute/hamstring and upper-back work in the templates rather
+than anything sex-conditional in the code.
 
 **The diet section is DONE** (2026-07-06): its own tab, `js/food-db.js` (~57 researched meals +
 staples), `js/screens/diet.js`, and the `js/screens/meal-picker.js` sheet, with a Today nudge —
@@ -269,6 +306,8 @@ README.md                 project reference
 
 ## Commit history (what shipped, newest first)
 ```
+7474b07  Intake: rebuild as a real trainer consultation; sex now reaches the split
+e9dbb6b  docs: accounts + sync, and the env-var traps this build hit
 dac97e9  Accounts: email/password auth + per-user cloud sync on Vercel Blob
 12f158f  docs: hosting moved to Vercel; record the account + first-deploy gotchas
 839b1da  Vercel: drop unsupported key from vercel.json, ignore .vercel

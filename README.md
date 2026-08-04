@@ -17,9 +17,11 @@ exercise swaps, plus a dedicated **Diet tab** with a researched meal database.
 
 ## Features
 
-- **Onboarding quiz → auto-generated plan.** A tap-to-answer intake sets your calories, protein,
-  carbs, and fat (Mifflin-St Jeor BMR → TDEE → targets) and builds a weekly training split, filtered
-  for your equipment and any injuries.
+- **A real trainer intake → auto-generated plan.** ~29 tap-to-answer questions, branched, modelled on
+  how trainers and dietitians actually run a first consultation: your goal *and the reason behind it*,
+  what derailed you last time, how confident you honestly are, how you sleep and recover, a health
+  screen, and how you eat. Sets calories and macros (Mifflin-St Jeor BMR → TDEE → targets) and builds
+  a split filtered for your equipment, injuries, session length, and recovery.
 - **Today = a fast workout checklist.** A bold day hero with a live "X / Y done" progress bar. Each
   exercise is a tap-to-complete checkbox. Tap a row for **how-to** (form cues + a "Watch demo" video
   link) or to **Replace** it. An interactive cardio finisher rounds out the day.
@@ -133,7 +135,30 @@ are handled.
 `js/generator.js` computes BMR (Mifflin-St Jeor) → TDEE (activity multiplier) → calorie target
 (deficit for fat loss) → protein/fat per bodyweight → carbs fill the rest. All coefficients are
 tunable constants at the top of the file. Reference user (M, 26, 6'0", 257 lb, mostly sitting) →
-**2240 cal / 210 P / 215 C / 60 F**.
+**2240 cal / 210 P / 215 C / 60 F** — that's the acceptance check for any change here.
+
+Beyond the formulas, the plan responds to the things a trainer would actually adjust for:
+
+| Input | Effect |
+|---|---|
+| **Confidence** | Low confidence shrinks the training week. Self-efficacy is the strongest known predictor of adherence, so a smaller plan finished beats a bigger one abandoned |
+| **Sleep / stress / training age** | Scale training volume — you adapt to what you recover from |
+| **Session length** | Trims each day, dropping isolation work before compounds |
+| **Goal weight + timeline** | Produces an honest pace, and says so when it misses the timeline you picked |
+| **Sex** | Sets rest intervals and nudges volume — see below |
+| **Life stage** | Irregular cycles and early postpartum cap the deficit; pregnancy goes to maintenance; uncleared postpartum gets gentler core work |
+
+### What sex changes
+
+Rest intervals (women 120s/60s, men 150s/90s) and about 10% more volume for women. That comes from
+trained women completing roughly twice the reps of men in a matched multi-set protocol with similar
+soreness and 1RM recovery afterward — the advantage is in between-set recovery, not slower fatigue.
+
+It does **not** change exercise selection. Squat, hinge, push, pull, carry, for everyone.
+
+There is deliberately **no menstrual-cycle periodization**. Current evidence shows no effect of cycle
+phase on strength performance or adaptation, so programming around it would invent precision that
+isn't there.
 
 ## Deploying
 
