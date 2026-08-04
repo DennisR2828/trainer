@@ -1,0 +1,13 @@
+{
+  "name": "trainer",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Trainer — local-first fitness PWA. The client stays dependency-free; this manifest exists only for the Vercel Functions under /api.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@vercel/blob": "^2.0.0"
+  }
+}

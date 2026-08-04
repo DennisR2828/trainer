@@ -3,3 +3,6 @@
 icons/__pycache__/
 .claude/
 .vercel
+node_modules/
+.env
+.env*.local

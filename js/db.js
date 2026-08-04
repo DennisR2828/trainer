@@ -1,8 +1,15 @@
-/* Local-first data layer (IndexedDB).
+/* Local-first data layer (IndexedDB) with cloud sync.
  *
- * Everything the app reads/writes goes through this module. Keep it this way:
- * when we add cloud sync (phase 2, Supabase) we replace the bodies of these
- * functions and the rest of the app does not change.
+ * Everything the app reads/writes goes through this module. Keep it this way.
+ *
+ * Local stays the source of truth for reads: every screen hits IndexedDB, so
+ * the app is instant and works with no signal at the gym. Writes land locally
+ * first and are pushed to the server on a short debounce. If the push fails the
+ * data is not lost — the dirty flag survives and we retry on the next write,
+ * when the connection returns, and when the app is backgrounded.
+ *
+ * Each account gets its own database (`trainer-u-<userId>`) so two people
+ * sharing a device never see each other's logs.
  *
  * Stores
  *   profile  keyPath "id"   singleton, id = "current"   (intake answers)
@@ -11,15 +18,40 @@
  *   meta     keyPath "key"  small app flags (onboarded, etc.)
  */
 
-const DB_NAME = 'trainer';
-const DB_VERSION = 1;
+import { pullData, pushData } from './api.js';
 
+const DB_VERSION = 1;
+const SYNC_DEBOUNCE_MS = 1500;
+
+let _userId = null;
 let _dbp = null;
+let _syncTimer = null;
+let _dirty = false;
+/* Set while we're writing server data into IndexedDB, so importing a pull
+ * doesn't immediately queue a push of what we just received. */
+let _applyingRemote = false;
+
+/* Called once after sign-in, before anything reads or writes. */
+export function setActiveUser(userId) {
+  if (_userId === userId) return;
+  _userId = userId;
+  _dbp = null; // force a reopen against the new database
+  _dirty = false;
+  clearTimeout(_syncTimer);
+}
+
+export const getActiveUser = () => _userId;
+
+function dbName() {
+  if (!_userId) throw new Error('No active user — call setActiveUser() first.');
+  return `trainer-u-${_userId}`;
+}
 
 function open() {
   if (_dbp) return _dbp;
+  const name = dbName();
   _dbp = new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    const req = indexedDB.open(name, DB_VERSION);
     req.onupgradeneeded = () => {
       const db = req.result;
       if (!db.objectStoreNames.contains('profile')) db.createObjectStore('profile', { keyPath: 'id' });
@@ -53,8 +85,13 @@ const req2promise = (r) => new Promise((res, rej) => { r.onsuccess = () => res(r
 /* ---- generic helpers ---- */
 const get    = (store, key) => tx(store, 'readonly',  (s) => req2promise(s.get(key)));
 const getAll = (store)      => tx(store, 'readonly',  (s) => req2promise(s.getAll()));
-const put    = (store, val) => tx(store, 'readwrite', (s) => req2promise(s.put(val)));
-const del    = (store, key) => tx(store, 'readwrite', (s) => req2promise(s.delete(key)));
+const put    = (store, val) => tx(store, 'readwrite', (s) => req2promise(s.put(val))).then(passThrough);
+const del    = (store, key) => tx(store, 'readwrite', (s) => req2promise(s.delete(key))).then(passThrough);
+
+function passThrough(result) {
+  markDirty();
+  return result;
+}
 
 /* ---- profile ---- */
 export const getProfile  = () => get('profile', 'current');
@@ -80,9 +117,9 @@ export async function resetAll() {
   await Promise.all([del('profile', 'current'), del('plan', 'current'), setFlag('onboarded', false)]);
 }
 
-/* ---- backup: export/import all local data to a portable JSON file ----
- * Local-first means the data lives only in this browser. These let the user
- * keep a copy and move it between devices/browsers. */
+/* ---- backup: export/import all data as a portable JSON file ----
+ * Still useful with sync in place: it's how data moves in from the old
+ * local-only build, and how the user keeps a copy we don't control. */
 export async function exportAll() {
   const [profile, plan, days] = await Promise.all([getProfile(), getPlan(), getAll('days')]);
   const onboarded = await getFlag('onboarded');
@@ -95,6 +132,52 @@ export async function importAll(data) {
   if (data.plan) await put('plan', { ...data.plan, id: 'current' });
   if (Array.isArray(data.days)) await Promise.all(data.days.filter((d) => d && d.date).map((d) => put('days', d)));
   await setFlag('onboarded', !!(data.meta && data.meta.onboarded) || !!data.profile);
+}
+
+/* ---- sync ---- */
+
+function markDirty() {
+  if (_applyingRemote || !_userId) return;
+  _dirty = true;
+  clearTimeout(_syncTimer);
+  _syncTimer = setTimeout(() => { syncUp().catch(() => {}); }, SYNC_DEBOUNCE_MS);
+}
+
+/* Push the full snapshot. Whole-snapshot rather than per-record diffing because
+ * the entire dataset is a few KB and each user is realistically on one device —
+ * the complexity of a merge protocol would buy nothing here. */
+export async function syncUp() {
+  if (!_userId || !_dirty) return false;
+  const snapshot = await exportAll();
+  await pushData(snapshot);
+  _dirty = false;
+  return true;
+}
+
+/* Pull the server copy into IndexedDB. Returns false when the account has no
+ * saved data yet (a fresh signup, which should go to onboarding). */
+export async function syncDown() {
+  const { data } = await pullData();
+  if (!data) return false;
+  _applyingRemote = true;
+  try {
+    await importAll(data);
+  } finally {
+    _applyingRemote = false;
+  }
+  return true;
+}
+
+export const hasUnsyncedChanges = () => _dirty;
+
+/* Retry points: coming back online, and the app being backgrounded or closed
+ * (on a phone that's the common way an app "ends", so it's the last chance to
+ * flush a pending write). */
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', () => { syncUp().catch(() => {}); });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') syncUp().catch(() => {});
+  });
 }
 
 /* ask the browser to keep our data (don't evict under storage pressure) */

@@ -1,6 +1,6 @@
 /* Service worker: precache the app shell so everything works offline at the gym.
    Bump CACHE whenever a precached file changes so clients pull the new copy. */
-const CACHE = 'trainer-v16';
+const CACHE = 'trainer-v17';
 
 const SHELL = [
   './',
@@ -9,6 +9,7 @@ const SHELL = [
   './css/styles.css',
   './fonts/archivo.woff2',
   './js/app.js',
+  './js/api.js',
   './js/config.js',
   './js/db.js',
   './js/ui.js',
@@ -17,6 +18,7 @@ const SHELL = [
   './js/exercises.js',
   './js/exercise-db.js',
   './js/food-db.js',
+  './js/screens/auth.js',
   './js/screens/onboarding.js',
   './js/screens/today.js',
   './js/screens/daylog.js',
@@ -56,6 +58,12 @@ self.addEventListener('fetch', (e) => {
 
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return; // never touch cross-origin
+
+  // The API must always hit the network. This handler is cache-first, so
+  // without this a cached GET /api/auth/me would keep a signed-out user looking
+  // signed in, and a cached GET /api/data would serve one account's snapshot
+  // to whoever signed in next on the same device.
+  if (url.pathname.startsWith('/api/')) return;
 
   // SPA navigations: serve cached index.html shell when offline.
   if (req.mode === 'navigate') {

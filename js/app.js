@@ -5,8 +5,10 @@
  * chart + weekly/all-time summaries). The diet logging UI is built but gated
  * behind DIET_ENABLED in config.js. */
 
-import { isOnboarded, setFlag, saveProfile, savePlan, getPlan, getProfile, exportAll, importAll, requestPersistence, todayKey } from './db.js';
+import { isOnboarded, setFlag, saveProfile, savePlan, getPlan, getProfile, exportAll, importAll, requestPersistence, todayKey, setActiveUser, syncDown, syncUp } from './db.js';
+import { getToken, getCachedUser, clearSession, fetchMe, ApiError } from './api.js';
 import { generatePlan } from './generator.js';
+import { renderAuth } from './screens/auth.js';
 import { renderOnboarding } from './screens/onboarding.js';
 import { renderToday } from './screens/today.js';
 import { renderCalendar } from './screens/calendar.js';
@@ -37,8 +39,48 @@ requestPersistence(); // keep local data from being evicted
 boot();
 
 async function boot() {
+  if (!getToken()) return showAuth();
+
+  // A stored token is almost always still good, so confirm it with the server —
+  // but a dead connection must not lock anyone out of an offline-first app.
+  // Only an explicit 401 signs you out; a failed fetch falls back to the cached
+  // identity and runs on local data until the connection returns.
+  let user = getCachedUser();
+  try {
+    user = await fetchMe();
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 401) {
+      clearSession();
+      return showAuth();
+    }
+    if (!user) return showAuth(); // offline with nothing cached: nothing to open
+  }
+  await enterApp(user);
+}
+
+function showAuth() {
+  document.body.classList.add('is-onboarding');
+  appbar.hidden = true;
+  tabbar.hidden = true;
+  renderAuth(view, { onAuthed: enterApp });
+}
+
+async function enterApp(user) {
+  setActiveUser(user.id);
+  document.body.classList.remove('is-onboarding');
+  // Pull whatever this account already has. A failure here is normal (offline,
+  // or a brand-new account with nothing saved), so it must not block boot.
+  try { await syncDown(); } catch { /* fall through to whatever is local */ }
   if (await isOnboarded()) showApp('today');
   else startOnboarding();
+}
+
+async function signOut() {
+  // Flush pending writes before dropping the session, or the last few taps of a
+  // workout would be lost with no way to recover them.
+  try { await syncUp(); } catch { /* offline — local copy stays on the device */ }
+  clearSession();
+  location.reload();
 }
 
 function startOnboarding() {
@@ -134,14 +176,19 @@ async function renderPlan(mount) {
     ...dayCards,
     h('button', { class: 'btn btn-ghost btn-lg', type: 'button', onClick: startOnboarding }, 'Re-run intake'),
 
-    h('div', { class: 'section-label' }, 'Your data'),
+    h('div', { class: 'section-label' }, 'Your account'),
     h('div', { class: 'card' }, [
-      h('p', { class: 'muted small' }, 'Everything is stored only on this device. Export a backup file to keep it safe or move it to another browser or device.'),
+      h('div', { class: 'card-hd' }, [
+        h('h3', {}, getCachedUser()?.name || 'Signed in'),
+        h('span', { class: 'card-sub' }, getCachedUser()?.email || ''),
+      ]),
+      h('p', { class: 'muted small' }, 'Your plan and logs save to this device instantly and sync to your account, so they follow you to any phone you sign in on.'),
       h('div', { class: 'data-btns' }, [
         h('button', { class: 'btn btn-ghost', type: 'button', onClick: doExport }, 'Export backup'),
         h('button', { class: 'btn btn-ghost', type: 'button', onClick: doImport }, 'Import backup'),
       ]),
       dataStatus,
+      h('button', { class: 'btn btn-ghost btn-lg', type: 'button', onClick: signOut }, 'Sign out'),
     ]),
   ]));
 
