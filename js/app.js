@@ -8,6 +8,7 @@
 import { isOnboarded, setFlag, saveProfile, savePlan, getPlan, getProfile, exportAll, importAll, requestPersistence, todayKey, setActiveUser, syncDown, syncUp } from './db.js';
 import { getToken, getCachedUser, clearSession, fetchMe, ApiError } from './api.js';
 import { generatePlan } from './generator.js';
+import { applyRest } from './exercises.js';
 import { renderAuth } from './screens/auth.js';
 import { renderOnboarding } from './screens/onboarding.js';
 import { renderToday } from './screens/today.js';
@@ -33,6 +34,10 @@ const h = (tag, props = {}, kids = []) => {
 };
 
 const TITLES = { today: 'Today', diet: 'Diet', calendar: 'Calendar', plan: 'Plan', progress: 'Progress' };
+
+/* Which plan day is open for editing. Module-scoped so it survives the
+ * re-render that every edit triggers. */
+let planEditingDay = null;
 
 registerSW();
 requestPersistence(); // keep local data from being evicted
@@ -134,32 +139,107 @@ async function renderPlan(mount) {
     h('div', { class: 'macro-lbl' }, label),
   ]);
 
-  // tap a plan exercise to swap it (opens the picker sheet); saves to the plan
+  /* Every edit here writes the weekly template and saves immediately. Because
+   * log.js only materializes a day record once you actually log something, an
+   * edit also lands on today automatically — unless today's workout is already
+   * underway, which we leave alone rather than rewriting mid-session. */
+  const persist = async () => { await savePlan(plan); renderPlan(mount); };
+
+  /* Rest is derived from sex and movement type, so re-derive the whole day after
+   * a structural change instead of trying to carry it through every swap. */
+  const reRest = (k) => { plan.days[k] = applyRest([plan.days[k]], profile?.sex || 'male')[0]; };
+
+  const swap = (d, k, e, j) => openReplaceSheet({
+    exerciseName: e.name,
+    dayExerciseNames: d.exercises.map((x) => x.name),
+    profile,
+    onPick: async (newName) => {
+      // Keep sets/reps, drop any stale "kit swap"/"injury swap" note from the
+      // exercise being replaced — it no longer describes this movement.
+      plan.days[k].exercises[j] = { name: newName, sets: e.sets, reps: e.reps };
+      reRest(k);
+      await persist();
+    },
+  });
+
+  /* No anchor exercise, so alternativesFor ranks across every muscle group this
+   * day already trains and excludes what is on it — the addition stays in the
+   * spirit of the split instead of turning leg day into arm day. */
+  const addExercise = (d, k) => openReplaceSheet({
+    eyebrow: 'Add to',
+    title: d.name,
+    exerciseName: '',
+    dayExerciseNames: d.exercises.map((x) => x.name),
+    profile,
+    emptyText: 'Nothing left to add that fits this day.',
+    onPick: async (newName) => {
+      const like = d.exercises[d.exercises.length - 1];
+      plan.days[k].exercises.push({ name: newName, sets: like ? like.sets : 3, reps: like ? like.reps : '10' });
+      reRest(k);
+      await persist();
+    },
+  });
+
+  const move = async (k, j, dir) => {
+    const list = plan.days[k].exercises;
+    const to = j + dir;
+    if (to < 0 || to >= list.length) return;
+    [list[j], list[to]] = [list[to], list[j]];
+    await persist();
+  };
+
+  const remove = async (k, j) => {
+    plan.days[k].exercises.splice(j, 1);
+    await persist();
+  };
+
+  const target = (e) => (e.rest ? `${e.sets} × ${e.reps} · ${e.rest}s` : `${e.sets} × ${e.reps}`);
+
+  // read-only row: the whole row is a swap shortcut, as before
   const planRow = (d, k, e, j) => h('li', { class: 'plan-ex-item' }, [
-    h('button', { class: 'plan-ex', type: 'button', onClick: () => openReplaceSheet({
-      exerciseName: e.name,
-      dayExerciseNames: d.exercises.map((x) => x.name),
-      profile,
-      onPick: async (newName) => {
-        plan.days[k].exercises[j] = { name: newName, sets: e.sets, reps: e.reps };
-        await savePlan(plan);
-        renderPlan(mount);
-      },
-    }) }, [
+    h('button', { class: 'plan-ex', type: 'button', onClick: () => swap(d, k, e, j) }, [
       h('span', { class: 'ex-name' }, e.name),
-      h('span', { class: 'ex-target' }, e.rest ? `${e.sets} × ${e.reps} · ${e.rest}s` : `${e.sets} × ${e.reps}`),
+      h('span', { class: 'ex-target' }, target(e)),
       h('span', { class: 'plan-swap', 'aria-hidden': 'true' }, '⇄'),
     ]),
   ]);
 
-  const dayCards = plan.days.map((d, k) => h('div', { class: 'card' }, [
-    h('div', { class: 'card-hd' }, [h('h3', {}, d.name), h('span', { class: 'card-sub' }, d.focus || '')]),
-    d.exercises.length
-      ? h('ul', { class: 'ex-list' }, d.exercises.map((e, j) => planRow(d, k, e, j)))
-      : h('p', { class: 'muted small' }, 'Rest / active recovery.'),
-    d.cardio ? h('div', { class: 'cardio-tag' }, `Finish: ${d.cardio}`) : null,
-    d.note ? h('p', { class: 'muted small' }, d.note) : null,
-  ]));
+  // edit row: reorder, swap, remove
+  const editRow = (d, k, e, j) => h('li', { class: 'plan-ex-item is-editing' }, [
+    h('div', { class: 'plan-ex-info' }, [
+      h('span', { class: 'ex-name' }, e.name),
+      h('span', { class: 'ex-target' }, target(e)),
+    ]),
+    h('div', { class: 'plan-ex-actions' }, [
+      h('button', { class: 'pe-btn', type: 'button', 'aria-label': `Move ${e.name} earlier`,
+        ...(j === 0 ? { disabled: 'true' } : {}), onClick: () => move(k, j, -1) }, '↑'),
+      h('button', { class: 'pe-btn', type: 'button', 'aria-label': `Move ${e.name} later`,
+        ...(j === d.exercises.length - 1 ? { disabled: 'true' } : {}), onClick: () => move(k, j, 1) }, '↓'),
+      h('button', { class: 'pe-btn', type: 'button', 'aria-label': `Swap ${e.name}`, onClick: () => swap(d, k, e, j) }, '⇄'),
+      h('button', { class: 'pe-btn pe-danger', type: 'button', 'aria-label': `Remove ${e.name}`, onClick: () => remove(k, j) }, '✕'),
+    ]),
+  ]);
+
+  const dayCards = plan.days.map((d, k) => {
+    const editing = planEditingDay === k;
+    return h('div', { class: 'card' + (editing ? ' is-editing' : '') }, [
+      h('div', { class: 'card-hd' }, [
+        h('h3', {}, d.name),
+        h('button', {
+          class: 'plan-edit-btn' + (editing ? ' is-on' : ''), type: 'button',
+          onClick: () => { planEditingDay = editing ? null : k; renderPlan(mount); },
+        }, editing ? 'Done' : 'Edit'),
+      ]),
+      d.focus ? h('p', { class: 'card-sub-line' }, d.focus) : null,
+      d.exercises.length
+        ? h('ul', { class: 'ex-list' }, d.exercises.map((e, j) => (editing ? editRow(d, k, e, j) : planRow(d, k, e, j))))
+        : h('p', { class: 'muted small' }, 'Rest / active recovery.'),
+      editing ? h('button', { class: 'btn btn-ghost plan-add', type: 'button', onClick: () => addExercise(d, k) }, '+  Add exercise') : null,
+      editing ? h('p', { class: 'muted small' }, 'Saved to your week. It applies to this day from now on, and to today unless you have already started today’s workout.') : null,
+      d.cardio ? h('div', { class: 'cardio-tag' }, `Finish: ${d.cardio}`) : null,
+      d.note ? h('p', { class: 'muted small' }, d.note) : null,
+    ]);
+  });
 
   const dataStatus = h('p', { class: 'muted small', role: 'status' }, '');
 

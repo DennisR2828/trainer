@@ -73,11 +73,17 @@ function injuryBlocked(name, injuries = {}) {
   if (injuries.shoulders && /overhead|behind|upright row|arnold|push press|military/.test(n)) return true;
   return false;
 }
+/* The bodyweight list below matches on movement keywords, which alone would let
+ * "Barbell glute bridge" and "Leg-press calf raise" through on the strength of
+ * "glute bridge" and "calf raise". Anything naming kit is rejected first. */
+const NEEDS_KIT = /barbell|dumbbell|\bdb\b|machine|cable|smith|hack|leg-?press|pec deck|t-bar|preacher|rope|band|kettlebell|\bplate\b|weighted|landmine|pulldown/i;
+const BODYWEIGHT_OK = /push-?up|pull-?up|chin-?up|\bdip\b|plank|inverted row|nordic|glute bridge|bodyweight|squat|lunge|step-?up|calf raise|crunch|leg raise|russian twist|bicycle|dead bug|side plank|hollow|sit-?up/i;
+
 function equipmentBlocked(name, eq = 'full_gym') {
   if (eq === 'full_gym' || eq === 'home_gym') return false;
   const n = name.toLowerCase();
   if (eq === 'minimal') return /barbell|machine|cable|hack|leg press|pec deck|smith|t-bar|lat pulldown|pulldown|preacher|rope/.test(n) && !/db|dumbbell|band/.test(n);
-  if (eq === 'bodyweight') return !/push-?up|pull-?up|chin-?up|\bdip\b|plank|inverted row|nordic|glute bridge|bodyweight|squat|lunge|step-?up|calf raise|crunch|leg raise|russian twist|bicycle|dead bug|side plank|hollow|sit-?up/.test(n);
+  if (eq === 'bodyweight') return NEEDS_KIT.test(n) || !BODYWEIGHT_OK.test(n);
   return false;
 }
 export function isAllowed(name, profile = {}) {

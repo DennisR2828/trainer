@@ -7,7 +7,7 @@
 import { h, clearNode, ring, num } from '../ui.js';
 import { getPlan, getProfile, savePlan, todayKey } from '../db.js';
 import { loadDay, persistDay, foodTotals, uid } from '../log.js';
-import { exerciseInfo, demoSearchUrl } from '../exercises.js';
+import { exerciseInfo, demoSearchUrl, applyRest } from '../exercises.js';
 import { muscleLabel } from '../exercise-db.js';
 import { openReplaceSheet } from './replace.js';
 import { DIET_ENABLED } from '../config.js';
@@ -156,6 +156,11 @@ export async function renderDayLog(mount, dateKey, opts = {}) {
         if (idx < 0) idx = i;
         if (pd.exercises[idx]) {
           pd.exercises[idx] = { name: newName, sets: pd.exercises[idx].sets, reps: pd.exercises[idx].reps };
+          // Re-derive rest for the day: it depends on sex and whether the new
+          // movement is a compound, so carrying the old value would be wrong.
+          plan.days[p] = applyRest([pd], profile?.sex || 'male')[0];
+          ex.rest = plan.days[p].exercises[idx].rest;
+          await persistDay(day);
           await savePlan(plan);
         }
       }

@@ -6,9 +6,15 @@
 import { h } from '../ui.js';
 import { alternativesFor } from '../exercise-db.js';
 
-export function openReplaceSheet({ exerciseName, dayExerciseNames, profile, onPick }) {
+export function openReplaceSheet({
+  exerciseName, dayExerciseNames, profile, onPick,
+  // Pass an empty exerciseName to use this as an "add" picker: with no anchor
+  // exercise, alternativesFor ranks across every group the day already trains.
+  eyebrow = 'Replace', title = exerciseName,
+  emptyText = 'No alternatives found for this one.',
+}) {
   const backdrop = h('div', { class: 'sheet-backdrop' });
-  const sheet = h('div', { class: 'sheet', role: 'dialog', 'aria-modal': 'true', 'aria-label': `Replace ${exerciseName}`, tabindex: '-1' });
+  const sheet = h('div', { class: 'sheet', role: 'dialog', 'aria-modal': 'true', 'aria-label': `${eyebrow} ${title}`, tabindex: '-1' });
 
   let closing = false;
   const onKey = (e) => { if (e.key === 'Escape') close(); };
@@ -24,8 +30,8 @@ export function openReplaceSheet({ exerciseName, dayExerciseNames, profile, onPi
 
   const header = h('div', { class: 'sheet-hd' }, [
     h('div', { class: 'sheet-htext' }, [
-      h('div', { class: 'sheet-eyebrow' }, 'Replace'),
-      h('div', { class: 'sheet-title' }, exerciseName),
+      h('div', { class: 'sheet-eyebrow' }, eyebrow),
+      h('div', { class: 'sheet-title' }, title),
     ]),
     h('button', { class: 'sheet-close', type: 'button', 'aria-label': 'Close', onClick: close }, '✕'),
   ]);
@@ -33,7 +39,7 @@ export function openReplaceSheet({ exerciseName, dayExerciseNames, profile, onPi
   const body = h('div', { class: 'sheet-body' });
   const ranked = alternativesFor(exerciseName, dayExerciseNames, profile);
   if (!ranked.length) {
-    body.append(h('p', { class: 'muted pad' }, 'No alternatives found for this one.'));
+    body.append(h('p', { class: 'muted pad' }, emptyText));
   } else {
     const top = ranked.slice(0, 5);
     const rest = ranked.slice(5);
