@@ -1,7 +1,7 @@
 # HANDOFF — Trainer (pick up from any session or machine)
 
 **App:** "Trainer" — a local-first, mobile fitness (and soon diet) tracker PWA.
-**Last updated:** 2026-08-04. **Deployed:** cache `trainer-v18`, hosted on **Vercel**, with accounts.
+**Last updated:** 2026-08-04. **Deployed:** cache `trainer-v19`, hosted on **Vercel**, with accounts.
 
 Read this first when resuming, then `README.md` for the fuller reference.
 
@@ -237,6 +237,16 @@ templates rather than structural change.
 everyone; only sets, rest, and substitutions vary. If the plans come back wrong for her, that is the
 next place to look — likely more direct glute/hamstring and upper-back work in the templates rather
 than anything sex-conditional in the code.
+
+**Weekly editing is done** (2026-08-04) — Plan tab, per-day **Edit** mode with reorder / remove /
+swap / add. Adds reuse the ranked picker with **no anchor exercise**, so `alternativesFor('')` ranks
+across every muscle group that day already trains and excludes what is on it; injury and equipment
+filters still apply. Rest is re-derived via `applyRest()` after every structural edit rather than
+carried through, because it depends on sex and on whether the new movement is a compound.
+
+Note that plan edits reach **today** automatically: `log.js` only materializes a day record once you
+log something, so an untouched day re-reads the edited plan. A workout already in progress is left
+alone on purpose.
 
 **The diet section is DONE** (2026-07-06): its own tab, `js/food-db.js` (~57 researched meals +
 staples), `js/screens/diet.js`, and the `js/screens/meal-picker.js` sheet, with a Today nudge —

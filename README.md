@@ -31,7 +31,9 @@ exercise swaps, plus a dedicated **Diet tab** with a researched meal database.
   exercises across 14 muscle groups, injury/equipment-aware.
 - **Calendar.** Month grid marking which days you worked out; tap a day to see/edit its log.
 - **Progress.** Bodyweight trend chart + quick weigh-in, plus weekly and all-time workout summaries.
-- **Editable Plan.** View and swap exercises for any day; re-run the intake to regenerate.
+- **Editable weekly plan.** Each day has an **Edit** mode: reorder, remove, swap, or add exercises,
+  saved to your week the moment you tap. Additions are ranked and scoped to the muscle groups that
+  day already trains, so leg day stays leg day. Re-run the intake any time to regenerate.
 - **Accounts + sync.** Email/password sign-in. Reads always come from local IndexedDB (so the app is
   instant and works with no signal), and writes push to your account on a short debounce. Sign in on
   any phone and your plan, workouts, and history come down with you. Two people can share a device —
